@@ -62,7 +62,6 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     return model
 
 if __name__=='__main__':
-    print("HELLO")
     
     params = parse_args('train')
     print(params.method)

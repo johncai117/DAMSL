@@ -705,12 +705,12 @@ if __name__=='__main__':
           #assert(torch.all(torch.eq(elem[i][1] , elem[i-1][1])) ) ##assertion check
       
 
-      #scores_out = finetune(x,y, model, state, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      scores_out = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_o, state_o, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      scores_out += finetune(liz_x, y, model_2, state2, save_it = 600, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_2_o, state2_o, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_3, state3, save_it = 600, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params, ds = True)
+       ### check for ablation
+      if params.ablation == "simple_FT":
+        scores_out = finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+      elif params.ablation == "no_ablation":
+        scores_out = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+        scores_out += finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
       n_way = 5
       n_query = 15

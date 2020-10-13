@@ -513,9 +513,9 @@ if __name__=='__main__':
             if not params.method in ['baseline'] :
               checkpoint_dir2 += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
             if not params.method in ['baseline'] : 
-              modelfile2   = get_assigned_file(checkpoint_dir2,600)
+              modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
-              modelfile2_o   = get_assigned_file(checkpoint_dir2,600)
+              modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
                 
                 
                 
@@ -523,9 +523,7 @@ if __name__=='__main__':
 
               if modelfile2 is not None:
                 tmp2 = torch.load(modelfile2)
-                tmp2_o  = torch.load(modelfile2_o)
                 state2 = tmp2['state']
-                state2_o = tmp2_o['state']
                 state_keys = list(state2.keys())
                 for _, key in enumerate(state_keys):
                     if "feature2." in key:
@@ -536,7 +534,7 @@ if __name__=='__main__':
                 
                 
                 
-                
+                ## clear some files
                 del tmp2
                 del modelfile2
 
@@ -592,7 +590,7 @@ if __name__=='__main__':
   
   if params.method != "all":
     for idx, (elem) in enumerate(novel_loader):
-      print(idx)
+      
       leng = len(elem)
       
       ## uncomment below assertion to check that same images are shown - the same image is selected despite using two different loaders
@@ -610,7 +608,7 @@ if __name__=='__main__':
         scores = nofinetune(liz_x[0], y, model, state, flatten = False, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      else:
+      elif params.method == "gnnnet":
         scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
@@ -638,13 +636,15 @@ if __name__=='__main__':
         #if i >= 1:
           #assert(torch.all(torch.eq(elem[i][1] , elem[i-1][1])) ) ##assertion check
       
-      
-      #scores_out = finetune(x,y, model, state, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      scores_out = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_o, state_o, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      scores_out += finetune(liz_x, y, model_2, state2, save_it = 600, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_2_o, state2_o, save_it = 400, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      #scores_out += nofinetune(liz_x[0],y, model_3, state3, save_it = 600, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params, ds = True)
+      ### check for ablation
+      if params.ablation == "simple_FT":
+        scores_out = finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+      elif params.ablation == "no_ablation":
+        scores_out = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+        scores_out += finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+    
+      if idx == 0:
+          print(params.save_iter)
 
       n_way = 5
       n_query = 15
@@ -655,7 +655,7 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      if idx % 10 == 0:
+      if idx % 50 == 0:
           print(idx)
           print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
