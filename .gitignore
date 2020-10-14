@@ -21,3 +21,10 @@ logs2.zip
 logs.zip
 oldlogs/
 vscode/
+filelists/CUB/CUB_200_2011/
+filelists/CUB/
+filelists/
+filelists/CUB/attributes.txt
+filelists/CUB/CUB_200_2011/bounding_boxes.txt
+filelists/CUB/CUB_200_2011/classes.txt
+filelists/CUB/attributes.txt

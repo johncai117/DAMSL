@@ -1,7 +1,7 @@
 save_dir                    = './logs'
 
 miniImageNet_path           	= 'content/miniImagenet3'
-DTD_path 						= '/ssd/dtd/images/'
+DTD_path 						= 'content/dtd/images/'
 
 ISIC_path = "content"
 ChestX_path = "content"

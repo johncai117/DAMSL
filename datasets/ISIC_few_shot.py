@@ -219,6 +219,7 @@ class SubDataset:
 
         img = self.transform(img_as_img)
         target = self.target_transform(self.cl)
+        
         return img, target
 
     def __len__(self):
@@ -243,6 +244,7 @@ class SubDataset2:
 
         img = self.transform(img_as_img)
         target = self.target_transform(self.cl)
+        
         return img, target
 
     def __len__(self):

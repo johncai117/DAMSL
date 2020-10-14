@@ -86,7 +86,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 
     x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
+    #x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
     
     ### to load all the changed examples
     x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
@@ -721,7 +721,7 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      if idx % 20 == 0:
+      if idx % 50 == 0:
           print(idx)
           print (correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
