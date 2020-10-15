@@ -29,7 +29,7 @@ from utils import *
 
 from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot
 
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
@@ -629,7 +629,7 @@ if __name__=='__main__':
       print (correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:
-     if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         model_2 = nn.DataParallel(model_2)
