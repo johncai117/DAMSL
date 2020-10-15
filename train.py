@@ -21,9 +21,14 @@ from methods import dampnet_full
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-def train(base_loader, model, optimization, start_epoch, stop_epoch, params):    
+def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        model = nn.DataParallel(model)
+    model.to(device)
     if optimization == 'Adam':
         optimizer = torch.optim.Adam(model.parameters())
     else:

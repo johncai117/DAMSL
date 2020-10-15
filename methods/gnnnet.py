@@ -7,6 +7,8 @@ from torch.autograd import Variable
 import backbone
 import copy
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -66,7 +68,7 @@ class GnnNet(MetaTemplate):
     return scores
 
   def set_forward(self,x,is_feature=False):
-    x = x.cuda()
+    x = x.to(device)
 
     if is_feature:
       # reshape the feature tensor: n_way * n_s + 15 * f
@@ -104,7 +106,7 @@ class GnnNet(MetaTemplate):
 
   
   def set_forward_finetune(self,x,is_feature=False):
-    x = x.cuda()
+    x = x.to(device)
 
     
     # get feature using encoder
