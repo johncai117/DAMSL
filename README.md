@@ -188,6 +188,18 @@ The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl
 6. Test
 
     Follow steps 2 and 3 in the steps for testing using pretrained models.
+    
+## Steps for Ablation Studies
+
+1. Simple Fine-Tuning
+
+For simple fine-tuning, simply change the arguments for --save-iter in steps 2 and 3 from "600" to "400".
+
+2. No Data Augmentation
+
+To remove data-augmentation, simply change the arguments for --gen-examples in steps 2 and 3 from "17" to "0".
+
+
 
 [1] Yunhui  Guo,  Noel  CF  Codella,  Leonid  Karlinsky,  John  RSmith,  Tajana  Rosing,  and  Rogerio  Feris.A  new  bench-mark for evaluation of cross-domain few-shot learning.arXivpreprint arXiv:1912.07200, 2019
 
