@@ -642,6 +642,8 @@ if __name__=='__main__':
       elif params.ablation == "no_ablation":
         scores_out = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         scores_out += finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+      elif params.ablation == "ablation_NL":
+        scores_out = finetune(liz_x, y, model_2, state2, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
     
       if idx == 0:
           print(params.save_iter)
