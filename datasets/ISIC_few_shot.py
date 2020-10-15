@@ -244,7 +244,11 @@ class SubDataset2:
 
         img = self.transform(img_as_img)
         target = self.target_transform(self.cl)
-        
+        #print("SEP")
+        #print(img)
+        #print("SEP")
+        #print(target)
+        #print(hello)
         return img, target
 
     def __len__(self):
@@ -397,7 +401,6 @@ class SetDataManager2(DataManager):
         dataset_chain = ConcatDataset(dataset_list)
 
         data_loader = torch.utils.data.DataLoader(dataset_chain, **data_loader_params)
-
         return data_loader
 
 if __name__ == '__main__':

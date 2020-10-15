@@ -254,6 +254,8 @@ class SubDataset2:
         target = self.target_transform(self.cl)
         target_list = [target] * (self.num_aug + 2)
         out = list(zip(img_aug_list, target_list))
+        #print(out)
+        #print(hello)
         return out
 
     def __len__(self):
@@ -423,6 +425,15 @@ class SetDataManager2(DataManager):
         #dataset_chain = ConcatDataset(dataset_list)
         
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
+        #print(data_loader)
+        #for i, elem in enumerate(data_loader):
+            #print(elem[0][0][2])
+            #print("ELEM")
+            #print(elem[1][0][2])
+            #print(len(elem))
+            #print(elem[1][0].shape)
+            #print(hello)
+        #print(hello)
        
         return data_loader
 

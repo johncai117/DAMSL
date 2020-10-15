@@ -46,6 +46,8 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     ###############################################################################################
     # load pretrained model on miniImageNet
     pretrained_model = model_dict[params.model](flatten = flatten)
+
+     
     
     state_temp = copy.deepcopy(state_in)
 
@@ -59,7 +61,6 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 
 
     pretrained_model.load_state_dict(state_temp)
-
     
     ###############################################################################################
 
@@ -120,8 +121,12 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
 
-    pretrained_model.cuda()
-    classifier.cuda()
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        pretrained_model = nn.DataParallel(pretrained_model)
+        classifier = nn.DataParallel(classifier)
+    classifier.to(device)
     ###############################################################################################
     
 
@@ -448,7 +453,7 @@ if __name__=='__main__':
             checkpoint_dir_b += '_aug'
 
         if params.save_iter != -1:
-            modelfile_b   = get_assigned_file(checkpoint_dir_b, 400)
+            modelfile_b   = get_assigned_file(checkpoint_dir_b, 400) ### always get the 400 iteration of it
         elif params.method in ['baseline', 'baseline++'] :
             modelfile_b   = get_resume_file(checkpoint_dir_b)
         else:
@@ -463,7 +468,7 @@ if __name__=='__main__':
         checkpoint_dir2 = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, 'miniImageNet', params.model, "gnnnet")
         
         
-
+        ### Now we load the baseline model
         checkpoint_dir_b = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, pretrained_dataset, params.model, "baseline")
         if params.train_aug:
             checkpoint_dir_b += '_aug'
@@ -517,9 +522,6 @@ if __name__=='__main__':
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
                 
-                
-                
-              
 
               if modelfile2 is not None:
                 tmp2 = torch.load(modelfile2)
@@ -587,8 +589,11 @@ if __name__=='__main__':
   iter_num = 600
   #print(iter_num)
   #print(len(novel_loader))
+
+ 
   
   if params.method != "all":
+      
     for idx, (elem) in enumerate(novel_loader):
       
       leng = len(elem)
@@ -624,6 +629,11 @@ if __name__=='__main__':
       print (correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:
+     if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        model_2 = nn.DataParallel(model_2)
+    model_2.to(device)
     for idx, (elem) in enumerate(novel_loader):
       leng = len(elem)
       ## uncomment below assertion to check randomness - the same image is selected despite using two different loaders
@@ -676,4 +686,7 @@ if __name__=='__main__':
   acc_mean = np.mean(acc_all)
   acc_std  = np.std(acc_all)
   print(params.test_dataset)
+  print(params.n_shot)
+  print(params.save_iter)
+  print(params.fine_tune_epoch)
   print('%d Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
