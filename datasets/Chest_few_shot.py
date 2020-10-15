@@ -247,7 +247,7 @@ class SubDataset2:
         img_as_img = Image.open(path).resize((256, 256)).convert('RGB')
         img_as_img.load()
         img_aug_list = []
-        for j in range(self.num_aug + 2): ## need the 
+        for j in range(self.num_aug + 2): ## need the plus 2
           img_transform_func = self.transform_list[j]
           img_func = img_transform_func()
           img_aug_list.append(img_func(img_as_img))
