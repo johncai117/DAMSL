@@ -8,6 +8,8 @@ import backbone
 import copy
 import math
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -51,6 +53,9 @@ class GnnNet(MetaTemplate):
   def set_forward(self,x,is_feature=False):
     x = x.cuda()
 
+    #print(x)
+    #print(x.shape)
+
     if is_feature:
       # reshape the feature tensor: n_way * n_s + 15 * f
       assert(x.size(1) == (self.n_support*2) + 15)
@@ -64,13 +69,23 @@ class GnnNet(MetaTemplate):
       z_s = z.size(1)
       z = z.view(self.n_way, -1, z_s)
     
+
+    #print(z.shape)
+    
     z2 = z[:, :(self.n_support*2)].view(self.n_way,2,self.n_support,z_s)
     
-    
+    #print(z2.shape)
     z3 = torch.mean(z2, dim =1)
+
+
     
     z_stack = [torch.cat((z3, z[:, (self.n_support*2) + i:(self.n_support*2) + i + 1]) , dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     
+    #print(self.n_query)
+
+    #print(z_stack)
+    #print(len(z_stack))
+
     assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
     assert(z_stack[-1].size(1) == self.n_way*(self.n_support + 1))
     scores = self.forward_gnn(z_stack)
@@ -249,7 +264,7 @@ class GnnNet(MetaTemplate):
     # gnn inp: n_q * n_way(n_s + 1) * f
     #print(zs[-1].shape)
     #print(self.support_label.shape)
-    nodes = [torch.cat([z, self.support_label], dim=2) for z in zs]
+    nodes = [torch.cat([z, self.support_label.to(device)], dim=2) for z in zs]
     scores = self.gnn(torch.cat(nodes, dim = 0))
 
     # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way

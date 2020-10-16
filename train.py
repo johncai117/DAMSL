@@ -23,12 +23,19 @@ from datasets import miniImageNet_few_shot, DTD_few_shot
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
+class DataParallelPassthrough(torch.nn.DataParallel):
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        model = nn.DataParallel(model)
-    model.to(device)
+        model = DataParallelPassthrough(model, device_ids = [0,1,2,3])
     if optimization == 'Adam':
         optimizer = torch.optim.Adam(model.parameters())
     else:
@@ -62,9 +69,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
          
-            
-     
-    return model
+
 
 if __name__=='__main__':
     
@@ -208,4 +213,5 @@ if __name__=='__main__':
           
       model.load_state_dict(state)
 
-    model = train(base_loader, model, optimization, start_epoch, stop_epoch, params)
+    
+    train(base_loader, model, optimization, start_epoch, stop_epoch, params)
