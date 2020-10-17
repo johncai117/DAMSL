@@ -272,7 +272,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
-    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01)
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
     #optimizer = torch.optim.Adam(model.parameters())
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -287,7 +287,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         param.requires_grad = False
 
     if freeze_backbone is False:
-        delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01, weight_decay= 0.001)
 
 
     pretrained_model.to(device)
