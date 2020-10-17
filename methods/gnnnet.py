@@ -127,9 +127,9 @@ class GnnNet(MetaTemplate):
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
     classifier = Classifier(self.feat_dim, self.n_way)
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
+    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
     
     names = []
     for name, param in feat_network.named_parameters():
@@ -211,7 +211,7 @@ class GnnNet(MetaTemplate):
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
-    nodes = torch.cat([torch.cat([z, self.support_label], dim=2) for z in zs], dim=0)
+    nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
     scores = self.gnn(nodes)
 
     # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way

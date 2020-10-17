@@ -12,7 +12,7 @@ class MetaTemplate(nn.Module):
         super(MetaTemplate, self).__init__()
         self.n_way      = n_way
         self.n_support  = n_support
-        self.n_query    = -1 #(change depends on input) 
+        self.n_query    = 15 #default is 15
         self.freeze_backbone = False
         self.feature    = model_func()
         self.feat_dim   = self.feature.final_feat_dim

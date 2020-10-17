@@ -32,10 +32,6 @@ class DataParallelPassthrough(torch.nn.DataParallel):
             return getattr(self.module, name)
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        model = DataParallelPassthrough(model, device_ids = [0,1,2,3])
     if optimization == 'Adam':
         optimizer = torch.optim.Adam(model.parameters())
     else:
@@ -156,7 +152,7 @@ if __name__=='__main__':
             gnn.Gconv.maml  = True
             gnn.Wcompute.maml = True
             model = gnnnet.GnnNet(model_dict[params.model], **train_few_shot_params)
-            print(model.maml)
+            #print(model.maml)
         elif params.method == 'gnnnet_neg_margin':
             model = gnnnet_neg_margin.GnnNet(model_dict[params.model], **train_few_shot_params)
         elif params.method == 'gnnnet_normalized':
@@ -196,6 +192,11 @@ if __name__=='__main__':
     stop_epoch = params.stop_epoch
 
     print(params.checkpoint_dir)
+
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        model = DataParallelPassthrough(model, device_ids = [0,1,2,3])
   
     if params.start_epoch > 0:
       resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
@@ -210,7 +211,7 @@ if __name__=='__main__':
               if "feature3." in key:
                   state.pop(key)
           
-          
+      
       model.load_state_dict(state)
 
     

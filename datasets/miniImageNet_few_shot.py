@@ -76,6 +76,46 @@ class SetDataset:
     def __len__(self):
         return len(self.sub_dataloader)
 
+class SetDataset2:
+    def __init__(self, batch_size, sub_meta, transform):
+
+        #for key, item in sub_meta.items():
+            #print (len(sub_meta[key]))
+        self.cl_list = range(10)
+        seed = 10
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+        np.random.seed(seed)  # Numpy module.
+        import random
+        random.seed(seed)  # Python random module.
+        torch.manual_seed(seed)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.enabled = False
+        
+        self.sub_dataloader = [] 
+        sub_data_loader_params = dict(batch_size = batch_size,
+                                  shuffle = False,
+                                  num_workers = 0, #use main thread only or may receive multiple batches
+                                  pin_memory = False)        
+        
+        for cl in self.cl_list:
+            random.shuffle(sub_meta[cl]) ## add back the seeded randomness ## same across datasets
+            sub_dataset = SubDataset2(sub_meta[cl], cl, transform = transform )
+            self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
+
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.enabled = True
+
+    def __getitem__(self, i):
+        return next(iter(self.sub_dataloader[i]))
+
+    def __len__(self):
+        return len(self.sub_dataloader)
+
+
 class SubDataset:
     def __init__(self, sub_meta, cl, d, transform=transforms.ToTensor(), target_transform=identity):
         self.sub_meta = sub_meta
@@ -87,6 +127,23 @@ class SubDataset:
     def __getitem__(self,i):
         samp , _ = self.d[self.sub_meta[i]] ## access item on the fly
         img = self.transform(samp)
+        target = self.target_transform(self.cl)
+        return img, target
+
+    def __len__(self):
+        return len(self.sub_meta)
+
+
+class SubDataset2:
+    def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
+        self.sub_meta = sub_meta
+        self.cl = cl 
+        self.transform = transform
+        self.target_transform = target_transform
+        self.sub_meta = sub_meta
+
+    def __getitem__(self,i):
+        img = self.transform(self.sub_meta[i])
         target = self.target_transform(self.cl)
         return img, target
 
@@ -105,6 +162,26 @@ class EpisodicBatchSampler(object):
     def __iter__(self):
         for i in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
+
+class EpisodicBatchSampler2(object): ##this version freezes the ids of the extracted image
+    def __init__(self, n_classes, n_way, n_episodes):
+        self.n_classes = n_classes
+        self.n_way = n_way
+        self.n_episodes = n_episodes
+
+    def __len__(self):
+        return self.n_episodes
+
+    def generate_perm(self):
+        self.perms = []
+        for i in range(self.n_episodes):
+          self.perms.append(torch.randperm(self.n_classes)[:self.n_way])
+
+        return self.perms
+
+    def __iter__(self):
+        for i in range(self.n_episodes):
+            yield self.perms[i]
 
 class TransformLoader:
     def __init__(self, image_size,
@@ -180,6 +257,59 @@ class SetDataManager(DataManager):
         sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )
         data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
+        return data_loader
+
+
+class ConcatDataset(torch.utils.data.Dataset):
+    def __init__(self, datasets):
+        self.datasets = datasets
+
+    def __getitem__(self, i):
+        return tuple(d[i] for d in self.datasets)
+
+    def __len__(self):
+        return min(len(d) for d in self.datasets)
+
+
+class SetDataManager2(DataManager):
+    def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100):        
+        super(SetDataManager2, self).__init__()
+        self.image_size = image_size
+        self.n_way = n_way
+        self.batch_size = n_support + n_query
+        self.n_eposide = n_eposide
+        self.cl_list = range(64)
+        
+
+        self.trans_loader = TransformLoader(image_size)
+
+    def get_data_loader(self, num_aug = 4): #parameters that would change on train/val set
+        transform = self.trans_loader.get_composed_transform(False)
+        
+        d = ImageFolder(miniImageNet_path)
+        sub_meta = {}
+        for cl in self.cl_list:
+            sub_meta[cl] = []
+        for i, (data, label) in enumerate(d):
+            sub_meta[label].append(data)
+
+        dataset = SetDataset2(self.batch_size, sub_meta, transform)
+        dataset2 = SetDataset2(self.batch_size, sub_meta, transform)
+        
+        sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
+        perms = sampler.generate_perm() ##permanent samples
+
+        data_loader_params = dict(batch_sampler = sampler, shuffle = False, num_workers = 2, pin_memory = True)       
+        
+        dataset_list = [dataset] + [dataset2]## for checking randomness later
+        for i in range(num_aug):
+          transform2 = TransformLoader(self.image_size).get_composed_transform(True)
+          dataset2 = SetDataset2(self.batch_size, sub_meta, transform2)
+          dataset_list.append(dataset2)
+        dataset_chain = ConcatDataset(dataset_list)
+        
+        data_loader = torch.utils.data.DataLoader(dataset_chain, **data_loader_params)
+       
         return data_loader
 
 if __name__ == '__main__':
