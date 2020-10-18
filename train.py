@@ -57,6 +57,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     else:
       for epoch in range(start_epoch,stop_epoch):
           #print(epoch)
+          model.num_FT_block = params.num_FT_block
           model.train()
           model.train_loop_finetune(epoch, base_loader,  optimizer ) 
           if epoch == (stop_epoch-1):
@@ -182,7 +183,8 @@ if __name__=='__main__':
         params.checkpoint_dir += '_aug'
 
     if not params.method  in ['baseline', 'baseline++']: 
-        params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
+            params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
+       
 
     if not os.path.isdir(params.checkpoint_dir):
         os.makedirs(params.checkpoint_dir)
@@ -210,6 +212,8 @@ if __name__=='__main__':
                   state.pop(key)
               if "feature3." in key:
                   state.pop(key)
+      if params.fine_tune and not params.num_FT_block == 1:
+          params.checkpoint_dir += "_" + str(params.num_FT_block)
           
       
       model.load_state_dict(state)

@@ -90,7 +90,7 @@ class MetaTemplate(nn.Module):
             if i % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
-    def train_loop_finetune(self, epoch, train_loader, optimizer ):
+    def train_loop_finetune(self, epoch, train_loader, optimizer):
         print_freq = 10
 
         avg_loss=0

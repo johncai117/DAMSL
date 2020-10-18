@@ -26,6 +26,7 @@ def parse_args(script):
     parser.add_argument('--fine_tune_epoch', default=100, type=int,help ='number of epochs to finetune')
     parser.add_argument('--gen_examples', default=10, type=int,help ='number of examples to generate (data augmentation)')
     parser.add_argument('--ablation'       , default='no_ablation',      help='set the ablation study we want to perform') 
+    parser.add_argument('--num_FT_block' , default=2, type=int,  help='number of blocks to finetune')
     if script == 'train':
         parser.add_argument('--fine_tune'   , action='store_true',  help='fine tuning during training ') 
         parser.add_argument('--num_classes' , default=200, type=int, help='total number of classes in softmax, only used in baseline') #make it larger than the maximum label value in base class

@@ -6,6 +6,7 @@ from methods.gnn import GNN_nl
 from torch.autograd import Variable
 import backbone
 import copy
+import math
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -32,6 +33,9 @@ class GnnNet(MetaTemplate):
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 128), nn.BatchNorm1d(128, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 128), backbone.BatchNorm1d_fw(128, track_running_stats=False))
     self.gnn = GNN_nl(128 + self.n_way, 96, self.n_way)
     self.method = 'GnnNet'
+    
+    # number of layers to allow to adapt during fine-tuning
+    self.num_FT_block = 2
 
     # fix label for training the metric function   1*nw(1 + ns)*nw
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
@@ -129,18 +133,37 @@ class GnnNet(MetaTemplate):
     classifier = Classifier(self.feat_dim, self.n_way)
     delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay= 0.0001) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01) ##try it with weight_decay
     
     names = []
     for name, param in feat_network.named_parameters():
       if param.requires_grad:
         #print(name)
         names.append(name)
+
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+    
+    assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
+    
+    if self.num_FT_block % 2 == 0:
+      num_FT_layers = (-9 * math.floor(self.num_FT_block / 2))
+    else:
+      num_FT_layers = (-9 * math.floor(self.num_FT_block / 2)) - 6
+
+
+    
+    
+    #print(self.num_FT_block)
+
+    #print(num_FT_layers)
+
+    #print(hello)
+
+    names_sub = names[:num_FT_layers] ### last Resnet block can adapt
 
     for name, param in feat_network.named_parameters():
       if name in names_sub:
+        #print(name)
         param.requires_grad = False    
   
       
