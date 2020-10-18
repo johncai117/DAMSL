@@ -62,6 +62,8 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
           model.train_loop_finetune(epoch, base_loader,  optimizer ) 
           if epoch == (stop_epoch-1):
             model.MAML_update()
+          if not os.path.isdir(params.checkpoint_dir):
+              os.makedirs(params.checkpoint_dir)
           if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
@@ -213,7 +215,7 @@ if __name__=='__main__':
               if "feature3." in key:
                   state.pop(key)
       if params.fine_tune and not params.num_FT_block == 1:
-          params.checkpoint_dir += "_" + str(params.num_FT_block)
+          params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
           
       
       model.load_state_dict(state)

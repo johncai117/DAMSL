@@ -529,13 +529,16 @@ if __name__=='__main__':
 
   if params.method != "all" and params.method != "baseline":
       checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, 'miniImageNet', params.model, params.method)
+      
+      
       if params.train_aug:
           checkpoint_dir += '_aug'
 
       if not params.method in ['baseline'] :
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
+          if params.fine_tune and not params.num_FT_block == 1:
+            checkpoint_dir += "_" + str(params.num_FT_block)
 
-      if not params.method in ['baseline'] : 
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
           else:
