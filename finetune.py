@@ -136,7 +136,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+    names_sub = names[:glob_num_FT_layers] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
@@ -280,7 +280,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+   names_sub = names[:glob_num_FT_layers] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
@@ -578,7 +578,12 @@ if __name__=='__main__':
                         state2.pop(key)
                 model_2.load_state_dict(state2)
                 
-                
+                model_2.num_FT_block = params.num_FT_block
+
+                if params.num_FT_block % 2 == 0:
+                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2))
+                else:
+                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2)) - 6
                 
                 ## clear some files
                 del tmp2

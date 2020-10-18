@@ -37,6 +37,11 @@ class GnnNet(MetaTemplate):
     # number of layers to allow to adapt during fine-tuning
     self.num_FT_block = 2
 
+    if self.num_FT_block % 2 == 0:
+      self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2))
+    else:
+      self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2)) - 6
+
     # fix label for training the metric function   1*nw(1 + ns)*nw
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
@@ -100,7 +105,7 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9]
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
     if not self.first:
       for (name, param), (name1, param1), (name2, param2) in zip(self.feature.named_parameters(), self.feature2.named_parameters(), self.feature3.named_parameters()):
         if name not in names_sub:
@@ -140,26 +145,10 @@ class GnnNet(MetaTemplate):
       if param.requires_grad:
         #print(name)
         names.append(name)
-
-    
     
     assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
     
-    if self.num_FT_block % 2 == 0:
-      num_FT_layers = (-9 * math.floor(self.num_FT_block / 2))
-    else:
-      num_FT_layers = (-9 * math.floor(self.num_FT_block / 2)) - 6
-
-
-    
-    
-    #print(self.num_FT_block)
-
-    #print(num_FT_layers)
-
-    #print(hello)
-
-    names_sub = names[:num_FT_layers] ### last Resnet block can adapt
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
 
     for name, param in feat_network.named_parameters():
       if name in names_sub:
