@@ -315,6 +315,8 @@ class SetDataManager2(DataManager):
         self.batch_size = n_support + n_query
         self.n_eposide = n_eposide
         self.cl_list = range(64)
+        self.d = ImageFolder(miniImageNet_path)
+        self.sub_meta = {}
         
 
         self.trans_loader = TransformLoader2(image_size)
@@ -322,15 +324,15 @@ class SetDataManager2(DataManager):
     def get_data_loader(self, num_aug = 4): #parameters that would change on train/val set
         transform = self.trans_loader.get_composed_transform(False)
         
-        d = ImageFolder(miniImageNet_path)
-        sub_meta = {}
+        
+        
         for cl in self.cl_list:
-            sub_meta[cl] = []
-        for i, (data, label) in enumerate(d):
-            sub_meta[label].append(i)
+            self.sub_meta[cl] = []
+        for i, (data, label) in enumerate(self.d):
+            self.sub_meta[label].append(i)
 
-        dataset = SetDataset2(self.batch_size, sub_meta, transform, d)
-        dataset2 = SetDataset2(self.batch_size, sub_meta, transform, d)
+        dataset = SetDataset2(self.batch_size, self.sub_meta, transform, self.d)
+        dataset2 = SetDataset2(self.batch_size, self.sub_meta, transform, self.d)
         
         sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
         perms = sampler.generate_perm() ##permanent samples
@@ -340,7 +342,7 @@ class SetDataManager2(DataManager):
         dataset_list = [dataset] + [dataset2]## for checking randomness later
         for i in range(num_aug):
           transform2 = TransformLoader(self.image_size).get_composed_transform(True)
-          dataset2 = SetDataset2(self.batch_size, sub_meta, transform2, d)
+          dataset2 = SetDataset2(self.batch_size, self.sub_meta, transform2, self.d)
           dataset_list.append(dataset2)
         dataset_chain = ConcatDataset(dataset_list)
         
