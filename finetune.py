@@ -55,16 +55,12 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     ###############################################################################################
     # load pretrained model on miniImageNet
     pretrained_model = model_dict[params.model](flatten = flatten)
-
-     
     
     state_temp = copy.deepcopy(state_in)
 
     state_keys = list(state_temp.keys())
 
-
-
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and params.parallel:
       for _, key in enumerate(state_keys):
           if "feature." in key and "num_batches_tracked" not in key:
               newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
@@ -87,7 +83,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 
     ###############################################################################################
     pretrained_model.load_state_dict(state_temp)
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and params.parallel:
         #print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
@@ -230,7 +226,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     classifier = Classifier(pretrained_model.final_feat_dim, n_way)
 
     ###############################################################################################
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and params.parallel:
         #print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
@@ -519,7 +515,7 @@ if __name__=='__main__':
         tmp_b = torch.load(modelfile_b)
         state_b = tmp_b['state']
 
-        if torch.cuda.device_count() > 1:
+        if torch.cuda.device_count() > 1 and params.parallel:
           print("Let's use", torch.cuda.device_count(), "GPUs!")
           # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
           model_2 = DataParallelPassthrough(model_2, device_ids = list(range(torch.cuda.device_count())))

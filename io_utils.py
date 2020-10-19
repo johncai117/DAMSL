@@ -27,6 +27,7 @@ def parse_args(script):
     parser.add_argument('--gen_examples', default=17, type=int,help ='number of examples to generate (data augmentation)')
     parser.add_argument('--ablation'       , default='no_ablation',      help='set the ablation study we want to perform') 
     parser.add_argument('--num_FT_block' , default=2, type=int,  help='number of blocks to finetune')
+    parser.add_argument('--parallel'   , action='store_true',  help='whether we want to use data parallelerism') 
     if script == 'train':
         parser.add_argument('--fine_tune'   , action='store_true',  help='fine tuning during training ') 
         parser.add_argument('--aug_episodes', action='store_true',      help='augmentation epsidoes during fine tuning ') 
