@@ -239,13 +239,14 @@ class GnnNet(MetaTemplate):
 
     x_a_i_new = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
     y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
-    for x_aug in liz_x[1:]:
-      x_aug = x_aug.to(device)
-      x_aug = Variable(x_aug)
-      x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:])
-      y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
-      x_a_i_new = torch.cat((x_a_i_new, x_a_aug), dim = 0)
-      y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
+    for i, x_aug in enumerate(liz_x):
+      if not i == random_int:
+        x_aug = x_aug.to(device)
+        x_aug = Variable(x_aug)
+        x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:])
+        y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
+        x_a_i_new = torch.cat((x_a_i_new, x_a_aug), dim = 0)
+        y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
     
 
     feat_network = copy.deepcopy(self.feature)
