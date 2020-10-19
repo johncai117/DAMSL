@@ -59,7 +59,10 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
           #print(epoch)
           model.num_FT_block = params.num_FT_block
           model.train()
-          model.train_loop_finetune(epoch, base_loader,  optimizer ) 
+          if not params.aug_episodes:
+            model.train_loop_finetune(epoch, base_loader,  optimizer)
+          else:
+            model.train_loop_finetune_ep(epoch, base_loader, optimizer)
           if epoch == (stop_epoch-1):
             model.MAML_update()
           if not os.path.isdir(params.checkpoint_dir):
@@ -83,11 +86,8 @@ if __name__=='__main__':
     if params.method in ['baseline'] :
 
         if params.dataset == "miniImageNet":
-            #print('hi')
             datamgr = miniImageNet_few_shot.SimpleDataManager(image_size, batch_size = 16)
-            #print("bye")
             base_loader = datamgr.get_data_loader(aug = params.train_aug )
-            #print("loaded")
         elif params.dataset == "CUB":
 
             base_file = configs.data_dir['CUB'] + 'base.json' 
@@ -123,12 +123,14 @@ if __name__=='__main__':
 
         if params.dataset == "miniImageNet":
             print("loading")
-            datamgr            = miniImageNet_few_shot.SetDataManager(image_size, n_query = n_query,  **train_few_shot_params)
-            base_loader        = datamgr.get_data_loader(aug = params.train_aug)
-            #datamgr         = miniImageNet_few_shot.SimpleDataManager(image_size, batch_size = 64)
-            #data_loader     = datamgr.get_data_loader(aug = False )
-            
-            print("BYE")
+            if not params.aug_episodes:
+                datamgr            = miniImageNet_few_shot.SetDataManager(image_size, n_query = n_query,  **train_few_shot_params)
+                base_loader        = datamgr.get_data_loader(aug = params.train_aug)
+                print(params.aug_episodes)
+            else:
+                datamgr            = miniImageNet_few_shot.SetDataManager2(image_size, n_query = n_query,  **train_few_shot_params)
+                base_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)
+                print(params.aug_episodes)
 
         else:
            raise ValueError('Unknown dataset')
@@ -219,6 +221,7 @@ if __name__=='__main__':
           
       
       model.load_state_dict(state)
+      model.n_query = n_query
 
     
     train(base_loader, model, optimization, start_epoch, stop_epoch, params)

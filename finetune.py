@@ -343,8 +343,8 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
       else:
         output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2]).detach()
-        output_query_original = pretrained_model(x_b_i.to(device))
-        output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
+        #output_query_original = pretrained_model(x_b_i.to(device))
+        #output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
       model.n_query = n_query
       if ds == True:
         score = model.set_forward(output_all, is_feature = True, domain_shift = True)
@@ -561,7 +561,7 @@ if __name__=='__main__':
             checkpoint_dir2 += '_aug'
             if not params.method in ['baseline'] :
               checkpoint_dir2 += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-              if params.fine_tune_epoch != 2 and not params.num_FT_block == 1:
+              if params.fine_tune_epoch > 0 and not params.num_FT_block == 2:
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               

@@ -24,11 +24,12 @@ def parse_args(script):
     parser.add_argument('--models_to_use', '--names-list', nargs='+', default=['miniImageNet', 'caltech256', 'DTD', 'cifar100', 'CUB'], help='pretained model to use')
     parser.add_argument('--fine_tune_all_models'   , action='store_true',  help='fine-tune each model before selection') #still required for save_features.py and test.py to find the model path correctly
     parser.add_argument('--fine_tune_epoch', default=100, type=int,help ='number of epochs to finetune')
-    parser.add_argument('--gen_examples', default=10, type=int,help ='number of examples to generate (data augmentation)')
+    parser.add_argument('--gen_examples', default=17, type=int,help ='number of examples to generate (data augmentation)')
     parser.add_argument('--ablation'       , default='no_ablation',      help='set the ablation study we want to perform') 
     parser.add_argument('--num_FT_block' , default=2, type=int,  help='number of blocks to finetune')
     if script == 'train':
         parser.add_argument('--fine_tune'   , action='store_true',  help='fine tuning during training ') 
+        parser.add_argument('--aug_episodes', action='store_true',      help='augmentation epsidoes during fine tuning ') 
         parser.add_argument('--num_classes' , default=200, type=int, help='total number of classes in softmax, only used in baseline') #make it larger than the maximum label value in base class
         parser.add_argument('--save_freq'   , default=50, type=int, help='Save frequency')
         parser.add_argument('--start_epoch' , default=0, type=int,help ='Starting epoch')

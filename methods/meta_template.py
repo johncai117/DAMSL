@@ -107,7 +107,21 @@ class MetaTemplate(nn.Module):
             if i % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+    def train_loop_finetune_ep(self, epoch, train_loader, optimizer ):
+        print_freq = 10
 
+        avg_loss=0
+        for i, elem in enumerate(train_loader):
+            liz_x = [x for (x,_) in elem]    
+            optimizer.zero_grad()
+            loss = self.set_forward_loss_finetune_ep( liz_x)
+            loss.backward()
+            optimizer.step()
+            avg_loss = avg_loss+loss.item()
+
+            if i % print_freq==0:
+                #print(optimizer.state_dict()['param_groups'][0]['lr'])
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
 
     def train_loop3(self, epoch, train_loader, optimizer, unsup_loader):
         print_freq = 10
