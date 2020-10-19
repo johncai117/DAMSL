@@ -231,9 +231,6 @@ class GnnNet(MetaTemplate):
     y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
 
     self.MAML_update() ## call MAML update
-
-    
-    
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:])
