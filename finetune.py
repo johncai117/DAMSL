@@ -18,7 +18,7 @@ from methods.baselinetrain import BaselineTrain
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods.gnnnet import GnnNet
-
+import math
 from methods import dampnet
 from methods import dampnet_full
 
@@ -136,7 +136,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-    names_sub = names[:glob_num_FT_layers] 
+    names_sub = names[:-9] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
@@ -280,7 +280,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-   names_sub = names[:glob_num_FT_layers] 
+    names_sub = names[:glob_num_FT_layers] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
@@ -537,7 +537,7 @@ if __name__=='__main__':
       if not params.method in ['baseline'] :
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
           if params.fine_tune and not params.num_FT_block == 1:
-            checkpoint_dir += "_" + str(params.num_FT_block)
+            checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
 
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
@@ -561,7 +561,8 @@ if __name__=='__main__':
             checkpoint_dir2 += '_aug'
             if not params.method in ['baseline'] :
               checkpoint_dir2 += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-            if not params.method in ['baseline'] : 
+              if params.fine_tune_epoch != 2 and not params.num_FT_block == 1:
+                checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
@@ -640,7 +641,8 @@ if __name__=='__main__':
   #print(len(novel_loader))
   n_way = 5
   n_query = 15
- 
+  
+  print(checkpoint_dir2)
   
   if params.method != "all":
       

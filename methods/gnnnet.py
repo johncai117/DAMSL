@@ -138,7 +138,7 @@ class GnnNet(MetaTemplate):
     classifier = Classifier(self.feat_dim, self.n_way)
     delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
     
     names = []
     for name, param in feat_network.named_parameters():
