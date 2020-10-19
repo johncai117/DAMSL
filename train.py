@@ -198,6 +198,7 @@ if __name__=='__main__':
     stop_epoch = params.stop_epoch
 
     print(params.checkpoint_dir)
+    model.n_query = n_query
 
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
@@ -221,7 +222,7 @@ if __name__=='__main__':
           
       
       model.load_state_dict(state)
-      model.n_query = n_query
+      
 
     
     train(base_loader, model, optimization, start_epoch, stop_epoch, params)
