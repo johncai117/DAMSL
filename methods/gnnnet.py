@@ -272,7 +272,7 @@ class GnnNet(MetaTemplate):
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
   
-    total_epoch = 5 ###change this
+    total_epoch = 3 ###change this
 
     classifier.train()
     feat_network.train()
