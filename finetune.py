@@ -18,7 +18,7 @@ from methods.baselinetrain import BaselineTrain
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods.gnnnet import GnnNet
-
+import math
 from methods import dampnet
 from methods import dampnet_full
 
@@ -61,24 +61,40 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     state_temp = copy.deepcopy(state_in)
 
     state_keys = list(state_temp.keys())
-    for _, key in enumerate(state_keys):
-        if "feature." in key:
-            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-            state_temp[newkey] = state_temp.pop(key)
-        else:
-            state_temp.pop(key)
 
 
-    pretrained_model.load_state_dict(state_temp)
+
+    if torch.cuda.device_count() > 1:
+      for _, key in enumerate(state_keys):
+          if "feature." in key and "num_batches_tracked" not in key:
+              newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+              state_temp[newkey] = state_temp.pop(key)
+          else:
+              state_temp.pop(key)
+    else:
+      for _, key in enumerate(state_keys):
+          if "feature." in key:
+              newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+              state_temp[newkey] = state_temp.pop(key)
+          else:
+              state_temp.pop(key)
+
+    
     
     ###############################################################################################
 
     classifier = Classifier(pretrained_model.final_feat_dim, n_way)
 
     ###############################################################################################
-    
-    
-    
+    pretrained_model.load_state_dict(state_temp)
+    if torch.cuda.device_count() > 1:
+        #print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
+        classifier = DataParallelPassthrough(classifier, device_ids = list(range(torch.cuda.device_count())))
+
+
+   
 
     x = liz_x[0] ### non-changed one
     n_query = x.size(1) - n_support
@@ -120,7 +136,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+    names_sub = names[:-9] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
@@ -130,11 +146,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
 
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
-        classifier = DataParallelPassthrough(classifier, device_ids = list(range(torch.cuda.device_count())))
+    
     pretrained_model.to(device)
     classifier.to(device)
     ###############################################################################################
@@ -196,8 +208,13 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     state_temp = copy.deepcopy(state_in)
 
     state_keys = list(state_temp.keys())
+
+    ### modify key names to fit
     for _, key in enumerate(state_keys):
-        if "feature." in key:
+        if "module." in key and "feature." in key:
+            newkey = key.replace("module.feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+            state_temp[newkey] = state_temp.pop(key)
+        elif "feature." in key:
             newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
             state_temp[newkey] = state_temp.pop(key)
         else:
@@ -213,7 +230,15 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     classifier = Classifier(pretrained_model.final_feat_dim, n_way)
 
     ###############################################################################################
-    
+    if torch.cuda.device_count() > 1:
+        #print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
+        classifier = DataParallelPassthrough(classifier, device_ids = list(range(torch.cuda.device_count())))
+
+    pretrained_model.to(device)
+    classifier.to(device)
+
     x = liz_x[0] ### non-changed one
     
     model.n_query = n_query
@@ -247,7 +272,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
     #optimizer = torch.optim.Adam(model.parameters())
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -255,14 +280,14 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+    names_sub = names[:glob_num_FT_layers] 
 
     for name, param in pretrained_model.named_parameters():
       if name in names_sub:
         param.requires_grad = False
 
     if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01, weight_decay= 0.001)
 
 
     pretrained_model.to(device)
@@ -494,18 +519,26 @@ if __name__=='__main__':
         tmp_b = torch.load(modelfile_b)
         state_b = tmp_b['state']
 
+        if torch.cuda.device_count() > 1:
+          print("Let's use", torch.cuda.device_count(), "GPUs!")
+          # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+          model_2 = DataParallelPassthrough(model_2, device_ids = list(range(torch.cuda.device_count())))
+
   
 
 
   if params.method != "all" and params.method != "baseline":
       checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, 'miniImageNet', params.model, params.method)
+      
+      
       if params.train_aug:
           checkpoint_dir += '_aug'
 
       if not params.method in ['baseline'] :
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
+          if params.fine_tune and not params.num_FT_block == 1:
+            checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
 
-      if not params.method in ['baseline'] : 
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
           else:
@@ -528,7 +561,8 @@ if __name__=='__main__':
             checkpoint_dir2 += '_aug'
             if not params.method in ['baseline'] :
               checkpoint_dir2 += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-            if not params.method in ['baseline'] : 
+              if params.fine_tune_epoch != 2 and not params.num_FT_block == 1:
+                checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
@@ -545,7 +579,12 @@ if __name__=='__main__':
                         state2.pop(key)
                 model_2.load_state_dict(state2)
                 
-                
+                model_2.num_FT_block = params.num_FT_block
+
+                if params.num_FT_block % 2 == 0:
+                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2))
+                else:
+                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2)) - 6
                 
                 ## clear some files
                 del tmp2
@@ -602,7 +641,8 @@ if __name__=='__main__':
   #print(len(novel_loader))
   n_way = 5
   n_query = 15
- 
+  
+  print(checkpoint_dir2)
   
   if params.method != "all":
       
@@ -642,10 +682,7 @@ if __name__=='__main__':
       acc_all.append((correct_this/ count_this *100))
   else:
     model_2.n_query = n_query
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        model_2 = DataParallelPassthrough(model_2, device_ids = list(range(torch.cuda.device_count())))
+    
     model_2.to(device)
     for idx, (elem) in enumerate(novel_loader):
       leng = len(elem)
@@ -677,7 +714,7 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      if idx % 50 == 0:
+      if idx % 100 == 0:
           print(idx)
           print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))

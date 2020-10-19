@@ -118,8 +118,6 @@ class SetDataset2:
         return len(self.sub_dataloader)
 
 
-
-
 class SubDataset:
     def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
         self.sub_meta = sub_meta
@@ -128,8 +126,6 @@ class SubDataset:
         self.target_transform = target_transform
 
     def __getitem__(self,i):
-        
-
 
         img = self.transform(self.sub_meta[i])
         target = self.target_transform(self.cl)

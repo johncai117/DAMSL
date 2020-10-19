@@ -6,6 +6,7 @@ from methods.gnn import GNN_nl
 from torch.autograd import Variable
 import backbone
 import copy
+import math
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -32,6 +33,14 @@ class GnnNet(MetaTemplate):
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 128), nn.BatchNorm1d(128, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 128), backbone.BatchNorm1d_fw(128, track_running_stats=False))
     self.gnn = GNN_nl(128 + self.n_way, 96, self.n_way)
     self.method = 'GnnNet'
+    
+    # number of layers to allow to adapt during fine-tuning
+    self.num_FT_block = 2
+
+    if self.num_FT_block % 2 == 0:
+      self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2))
+    else:
+      self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2)) - 6
 
     # fix label for training the metric function   1*nw(1 + ns)*nw
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
@@ -96,7 +105,7 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9]
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
     if not self.first:
       for (name, param), (name1, param1), (name2, param2) in zip(self.feature.named_parameters(), self.feature2.named_parameters(), self.feature3.named_parameters()):
         if name not in names_sub:
@@ -137,10 +146,13 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    names_sub = names[:-9] ### last Resnet block can adapt
+    assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
+    
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
 
     for name, param in feat_network.named_parameters():
       if name in names_sub:
+        #print(name)
         param.requires_grad = False    
   
       
@@ -211,7 +223,7 @@ class GnnNet(MetaTemplate):
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
-    nodes = torch.cat([torch.cat([z, self.support_label], dim=2) for z in zs], dim=0)
+    nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
     scores = self.gnn(nodes)
 
     # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
