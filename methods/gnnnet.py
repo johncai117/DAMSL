@@ -214,7 +214,7 @@ class GnnNet(MetaTemplate):
     self.n_query = n_query
     x = x.to(device)
     # get feature using encoder
-    batch_size = 4
+    batch_size = 32
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
@@ -298,7 +298,7 @@ class GnnNet(MetaTemplate):
             #print(output)
             loss = loss_fn(scores, y_batch)
             #print(loss)
-            #print(scores.shape)
+            print(scores.shape)
             #print(output.shape)
             #print(hello)
 
@@ -340,7 +340,7 @@ class GnnNet(MetaTemplate):
     self.n_query = n_query
     x = x.to(device)
     # get feature using encoder
-    batch_size = 4
+    batch_size = 32
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():

@@ -242,7 +242,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     x_var = Variable(x)
 
 
-    batch_size = 5
+    batch_size = 32
     support_size = n_way * n_support 
     
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
