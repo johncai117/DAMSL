@@ -37,6 +37,7 @@ class GnnNet(MetaTemplate):
     
     # number of layers to allow to adapt during fine-tuning
     self.num_FT_block = 2 ##default
+    self.ft_epoch = 3
 
     if self.num_FT_block % 2 == 0:
       self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2))
@@ -266,7 +267,7 @@ class GnnNet(MetaTemplate):
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
   
-    total_epoch = 3 ###change this
+    total_epoch = self.ft_epoch 
 
     classifier.train()
     feat_network.train()

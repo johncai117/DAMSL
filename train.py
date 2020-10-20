@@ -58,6 +58,8 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
       for epoch in range(start_epoch,stop_epoch):
           #print(epoch)
           model.num_FT_block = params.num_FT_block
+          model.ft_epoch = params.fine_tune_epoch
+          
           model.train()
           if not params.aug_episodes:
             model.train_loop_finetune(epoch, base_loader,  optimizer)
@@ -220,8 +222,9 @@ if __name__=='__main__':
                   state.pop(key)
       if params.fine_tune and not params.num_FT_block == 1:
           params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-          
-      
+      if params.fine_tune_epoch != 3 and params.start_epoch > 401:
+          params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+
       model.load_state_dict(state)
       
 
