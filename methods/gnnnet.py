@@ -298,7 +298,7 @@ class GnnNet(MetaTemplate):
             #print(output)
             loss = loss_fn(scores, y_batch)
             #print(loss)
-            print(scores.shape)
+            #print(scores.shape)
             #print(output.shape)
             #print(hello)
 
