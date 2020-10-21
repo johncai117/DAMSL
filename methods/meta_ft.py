@@ -195,7 +195,7 @@ class Meta_FT(MetaTemplate):
     self.n_query = n_query
     x = x.to(device)
     # get feature using encoder
-    batch_size = 32
+    batch_size = 16
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
@@ -204,8 +204,6 @@ class Meta_FT(MetaTemplate):
     x_var = Variable(x)
       
     y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
-
-    self.MAML_update() ## call MAML update
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:])
@@ -225,7 +223,7 @@ class Meta_FT(MetaTemplate):
     
 
     feat_network = copy.deepcopy(self.feature)
-    classifier = Classifier(self.feat_dim, self.n_way)
+    classifier = copy.deepcopy(self.classifier)
     
     
     names = []
@@ -243,9 +241,9 @@ class Meta_FT(MetaTemplate):
         #print(name)
         param.requires_grad = False    
 
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.0001) ##try it with weight_decay
+    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
   
     total_epoch = self.ft_epoch 
 
