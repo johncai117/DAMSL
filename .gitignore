@@ -31,3 +31,5 @@ filelists/CUB/CUB_200_2011/bounding_boxes.txt
 filelists/CUB/CUB_200_2011/classes.txt
 filelists/CUB/attributes.txt
 datasets/backups
+logs_original/
+og/

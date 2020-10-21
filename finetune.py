@@ -534,6 +534,9 @@ if __name__=='__main__':
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
           if params.fine_tune and not params.num_FT_block == 1:
             checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+          if params.change_FT_dir > 0:
+            params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+            params.checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
 
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
@@ -559,6 +562,9 @@ if __name__=='__main__':
               checkpoint_dir2 += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
               if params.fine_tune_epoch > 0 and not params.num_FT_block == 2:
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
+              if params.change_FT_dir > 0:
+                checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
+                checkpoint_dir2 += "_" + str(params.change_FT_dir) + "FT_epoch"
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
@@ -710,9 +716,8 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      if idx % 100 == 0:
-          print(idx)
-          print(correct_this/ count_this *100)
+      print(idx)
+      print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
       
       

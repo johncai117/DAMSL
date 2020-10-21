@@ -209,7 +209,17 @@ if __name__=='__main__':
         model = DataParallelPassthrough(model, device_ids = [0,1,2,3])
   
     if params.start_epoch > 0:
+      if params.start_epoch > 401:
+        if params.fine_tune and not params.num_FT_block == 1: ##
+            params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+        if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+            params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
       resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+      else:
+        if params.fine_tune and not params.num_FT_block == 1: ##
+            params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+        if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+            params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
       if resume_file is not None:
           tmp = torch.load(resume_file)
           
@@ -220,10 +230,8 @@ if __name__=='__main__':
                   state.pop(key)
               if "feature3." in key:
                   state.pop(key)
-      if params.fine_tune and not params.num_FT_block == 1:
-          params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-      if params.fine_tune_epoch != 3 and params.start_epoch > 401:
-          params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+      
+      
 
       model.load_state_dict(state)
       
