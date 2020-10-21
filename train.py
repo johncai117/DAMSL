@@ -66,8 +66,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
             model.train_loop_finetune(epoch, base_loader,  optimizer)
           else:
             model.train_loop_finetune_ep(epoch, base_loader, optimizer)
-          if epoch == (stop_epoch-1):
-            model.MAML_update()
+          
           if not os.path.isdir(params.checkpoint_dir):
               os.makedirs(params.checkpoint_dir)
           if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):

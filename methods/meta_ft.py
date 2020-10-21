@@ -42,6 +42,41 @@ class Meta_FT(MetaTemplate):
     out  = self.feature.forward(x)
     scores  = self.classifier.forward(out)
     return scores
+  
+  def train_loop_finetune(self, epoch, train_loader, optimizer ):
+        print_freq = 10
+
+        avg_loss=0
+        for i, (x,_ ) in enumerate(train_loader):
+            self.n_query = x.size(1) - self.n_support           
+            if self.change_way:
+                self.n_way  = x.size(0)
+            optimizer.zero_grad()
+            loss = self.set_forward_loss_finetune( x )
+            loss.backward()
+            optimizer.step()
+            self.MAML_update()
+            avg_loss = avg_loss+loss.item()
+
+            if i % print_freq==0:
+                #print(optimizer.state_dict()['param_groups'][0]['lr'])
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+  def train_loop_finetune_ep(self, epoch, train_loader, optimizer ):
+      print_freq = 10
+
+      avg_loss=0
+      for i, elem in enumerate(train_loader):
+          liz_x = [x for (x,_) in elem]    
+          optimizer.zero_grad()
+          loss = self.set_forward_loss_finetune_ep( liz_x)
+          loss.backward()
+          optimizer.step()
+          self.MAML_update()
+          avg_loss = avg_loss+loss.item()
+
+          if i % print_freq==0:
+              #print(optimizer.state_dict()['param_groups'][0]['lr'])
+              print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
 
   def MAML_update(self):
     names = []
@@ -75,8 +110,6 @@ class Meta_FT(MetaTemplate):
     x_var = Variable(x)
       
     y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
-
-    self.MAML_update() ## call MAML update
     
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)

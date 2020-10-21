@@ -77,8 +77,41 @@ class GnnNet(MetaTemplate):
     assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
     scores = self.forward_gnn(z_stack)
     return scores
+  
+  def train_loop_finetune(self, epoch, train_loader, optimizer ):
+        print_freq = 10
 
+        avg_loss=0
+        for i, (x,_ ) in enumerate(train_loader):
+            self.n_query = x.size(1) - self.n_support           
+            if self.change_way:
+                self.n_way  = x.size(0)
+            optimizer.zero_grad()
+            loss = self.set_forward_loss_finetune( x )
+            loss.backward()
+            optimizer.step()
+            self.MAML_update()
+            avg_loss = avg_loss+loss.item()
 
+            if i % print_freq==0:
+                #print(optimizer.state_dict()['param_groups'][0]['lr'])
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+  def train_loop_finetune_ep(self, epoch, train_loader, optimizer ):
+      print_freq = 10
+
+      avg_loss=0
+      for i, elem in enumerate(train_loader):
+          liz_x = [x for (x,_) in elem]    
+          optimizer.zero_grad()
+          loss = self.set_forward_loss_finetune_ep( liz_x)
+          loss.backward()
+          optimizer.step()
+          self.MAML_update()
+          avg_loss = avg_loss+loss.item()
+
+          if i % print_freq==0:
+              #print(optimizer.state_dict()['param_groups'][0]['lr'])
+              print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
   def MAML_update(self):
     names = []
     for name, param in self.feature.named_parameters():

@@ -17,7 +17,7 @@ class MetaTemplate(nn.Module):
         self.feature    = model_func()
         self.feat_dim   = self.feature.final_feat_dim
         self.change_way = change_way  #some methods allow different_way classification during training and test
-
+        self.last = False
     @abstractmethod
     def set_forward(self,x,is_feature):
         pass
@@ -90,39 +90,6 @@ class MetaTemplate(nn.Module):
             if i % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
-    def train_loop_finetune(self, epoch, train_loader, optimizer ):
-        print_freq = 10
-
-        avg_loss=0
-        for i, (x,_ ) in enumerate(train_loader):
-            self.n_query = x.size(1) - self.n_support           
-            if self.change_way:
-                self.n_way  = x.size(0)
-            optimizer.zero_grad()
-            loss = self.set_forward_loss_finetune( x )
-            loss.backward()
-            optimizer.step()
-            avg_loss = avg_loss+loss.item()
-
-            if i % print_freq==0:
-                #print(optimizer.state_dict()['param_groups'][0]['lr'])
-                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
-    def train_loop_finetune_ep(self, epoch, train_loader, optimizer ):
-        print_freq = 10
-
-        avg_loss=0
-        for i, elem in enumerate(train_loader):
-            liz_x = [x for (x,_) in elem]    
-            optimizer.zero_grad()
-            loss = self.set_forward_loss_finetune_ep( liz_x)
-            loss.backward()
-            optimizer.step()
-            avg_loss = avg_loss+loss.item()
-
-            if i % print_freq==0:
-                #print(optimizer.state_dict()['param_groups'][0]['lr'])
-                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
-
     def train_loop3(self, epoch, train_loader, optimizer, unsup_loader):
         print_freq = 10
 
@@ -144,6 +111,7 @@ class MetaTemplate(nn.Module):
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
 
 
+    
     def test_loop(self, test_loader, record = None):
         correct =0
         count = 0
@@ -198,3 +166,5 @@ class MetaTemplate(nn.Module):
 
         scores = linear_clf(z_query)
         return scores
+
+        
