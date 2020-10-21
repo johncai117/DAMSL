@@ -17,7 +17,7 @@ class MetaTemplate(nn.Module):
         self.feature    = model_func()
         self.feat_dim   = self.feature.final_feat_dim
         self.change_way = change_way  #some methods allow different_way classification during training and test
-        self.last = False
+        self.optimizer = "Adam"
     @abstractmethod
     def set_forward(self,x,is_feature):
         pass
@@ -25,7 +25,6 @@ class MetaTemplate(nn.Module):
     @abstractmethod
     def set_forward_loss(self, x):
         pass
-
     def forward(self,x):
         out  = self.feature.forward(x)
         return out

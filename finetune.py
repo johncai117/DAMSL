@@ -266,8 +266,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
-    #optimizer = torch.optim.Adam(model.parameters())
+    
     names = []
     for name, param in pretrained_model.named_parameters():
       if param.requires_grad:
@@ -280,9 +279,16 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
       if name in names_sub:
         param.requires_grad = False
 
-    if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+    if params.optimizer_inner == "Adam":
+      classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
 
+      if freeze_backbone is False:
+          delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+    elif params.optimizer_inner == "SGD":
+      classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
+
+      if freeze_backbone is False:
+          delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
     pretrained_model.to(device)
     classifier.to(device)
@@ -344,16 +350,14 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         score = model.set_forward(output_all, is_feature = True, domain_shift = True)
       else:
         score = model.set_forward(output_all, is_feature = True)
-      score = torch.nn.functional.softmax(score, dim = 1).detach()
+      #score = torch.nn.functional.softmax(score, dim = 1).detach()
     elif linear:
       output_query_original = pretrained_model(x_b_i.to(device))    
       if flatten == False:
         output_query_original = flat(avgpool(output_query_original))
       score = classifier(output_query_original).detach()
       
-    #score = torch.nn.functional.softmax(score, dim = 1)
-
-    #print(score.shape)
+    score = torch.nn.functional.softmax(score, dim = 1)
 
     return score
 
@@ -464,6 +468,10 @@ if __name__=='__main__':
   n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
   few_shot_params = dict(n_way = params.test_n_way , n_support = params.n_shot) 
 
+  if params.num_FT_block % 2 == 0:
+    glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2))
+  else:
+    glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2)) - 6
 
 
   if params.method in ["gnnnet", "gnnnet_maml"]:
@@ -592,10 +600,7 @@ if __name__=='__main__':
                 
                 model_2.num_FT_block = params.num_FT_block
 
-                if params.num_FT_block % 2 == 0:
-                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2))
-                else:
-                   glob_num_FT_layers = (-9 * math.floor(params.num_FT_block / 2)) - 6
+                
                 
                 ## clear some files
                 del tmp2
@@ -650,7 +655,7 @@ if __name__=='__main__':
   n_way = 5
   n_query = 15
   
-  print(checkpoint_dir2)
+ # print(checkpoint_dir2)
   
   if params.method != "all":
       
@@ -676,7 +681,7 @@ if __name__=='__main__':
       elif params.method == "gnnnet":
         scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      elif params.method == "Meta_FT":
+      elif params.method == "meta_ft":
         scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       n_way = 5
       n_query = 15
@@ -687,6 +692,7 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
+      print(idx)
       print (correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:

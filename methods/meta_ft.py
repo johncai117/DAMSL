@@ -115,10 +115,14 @@ class Meta_FT(MetaTemplate):
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
     classifier = copy.deepcopy(self.classifier)
-    delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
-    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    if self.optimizer == "Adam":
+      delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.0001) ##try it with weight_decay
+    elif self.optimizer == "SGD":
+      delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
     
+    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     names = []
     for name, param in feat_network.named_parameters():
       if param.requires_grad:
@@ -240,10 +244,14 @@ class Meta_FT(MetaTemplate):
       if name in names_sub:
         #print(name)
         param.requires_grad = False    
-
-    delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    if self.optimizer == "Adam":
+      delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.0001) ##try it with weight_decay
+    elif self.optimizer == "SGD":
+      delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
   
     total_epoch = self.ft_epoch 
 
@@ -296,136 +304,6 @@ class Meta_FT(MetaTemplate):
     output_query = self.feature(x_b_i.cuda())
     scores = self.classifier(output_query)
 
-    return scores
-
-  def set_forward_finetune_ep_gnn(self,liz_x,is_feature=False, n_query = 16):
-    ### introduce a random int generator here to randomly take an augmented sample. This is to allow for better regularization in the fine tuning process.
-    x = liz_x[0] ### non-changed one
-    self.n_query = n_query
-    x = x.to(device)
-    # get feature using encoder
-    batch_size = 6
-    support_size = self.n_way * self.n_support 
-
-    for name, param  in self.feature.named_parameters():
-      param.requires_grad = True
-
-    x_var = Variable(x)
-      
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
-
-    self.MAML_update_gnn() ## call MAML update
-    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
-    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:])
-    
-    ### to load all the changed examples
-
-    x_a_i_new = x_a_i
-    for i, x_aug in enumerate(liz_x):
-      if i > 1: ## past the second one
-        x_aug = x_aug.to(device)
-        x_aug = Variable(x_aug)
-        x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous()
-        x_a_aug = x_a_aug.view( self.n_way* self.n_support, *x.size()[2:])
-        y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
-        x_a_i_new = torch.cat((x_a_i_new, x_a_aug), dim = 0)
-        y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
-    
-
-    feat_network = copy.deepcopy(self.feature)
-    fc_network = copy.deepcopy(self.fc)
-    gnn_network = copy.deepcopy(self.gnn)
-    #classifier = Classifier(self.feat_dim, self.n_way)
-    
-    
-    names = []
-    for name, param in feat_network.named_parameters():
-      if param.requires_grad:
-        #print(name)
-        names.append(name)
-    
-    assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
-    
-    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt. default is -9
-
-    for name, param in feat_network.named_parameters():
-      if name in names_sub:
-        #print(name)
-        param.requires_grad = False    
-
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
-    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    gnn_opt = torch.optim.Adam(gnn_network.parameters(), lr = 0.01) ##try it with weight_decay
-    fc_opt = torch.optim.Adam(fc_network.parameters(), lr = 0.01) ##try it with weight_decay
-  
-    total_epoch = self.ft_epoch ###change this
-
-    gnn_network.train()
-    fc_network.train()
-    feat_network.train()
-
-    gnn_network.cuda()
-    fc_network.cuda()
-    feat_network.cuda()
-
-    lengt = len(liz_x) +1
-    for epoch in range(total_epoch):
-        rand_id = np.random.permutation(support_size * lengt)
-        for j in range(0, support_size * lengt, batch_size):
-            delta_opt.zero_grad()
-            gnn_opt.zero_grad()
-            fc_opt.zero_grad()
-
-            #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
-            
-            z_batch = x_a_i_new[selected_id].to(device)
-            y_batch = y_a_i[selected_id] 
-            #####################################
-
-            output = feat_network(z_batch)
-            scores  = classifier(output)
-            loss = loss_fn(output, y_batch)
-
-            #####################################
-            loss.backward()
-            classifier_opt.step()
-            delta_opt.step()
-    
-    if self.first == True:
-      self.first = False
-    self.feature2 = copy.deepcopy(self.feature)
-    self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
-    self.feature.load_state_dict(feat_network.state_dict())
-    
-    for name, param  in self.feature.named_parameters():
-        param.requires_grad = True
-    
-    output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1)
-
-    final = torch.cat((output_support, output_query), dim =1).cuda()
-
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
-    z = self.fc(final.view(-1, *final.size()[2:]))
-    z = z.view(self.n_way, -1, z.size(1))
-
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
-    
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    
-    scores = self.forward_gnn(z_stack)   
-
-    return scores
-
-  def forward_gnn(self, zs):
-    # gnn inp: n_q * n_way(n_s + 1) * f
-    nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
-    scores = self.gnn(nodes)
-
-    # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
-    scores = scores.view(self.n_query, self.n_way, self.n_support + 1, self.n_way)[:, :, -1].permute(1, 0, 2).contiguous().view(-1, self.n_way)
     return scores
 
   def set_forward_loss(self, x):

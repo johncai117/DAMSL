@@ -56,11 +56,11 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
     else:
+      params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+      model.num_FT_block = params.num_FT_block
+      model.ft_epoch = params.fine_tune_epoch
+      model.optimizer = params.optimizer_inner
       for epoch in range(start_epoch,stop_epoch):
-          #print(epoch)
-          model.num_FT_block = params.num_FT_block
-          model.ft_epoch = params.fine_tune_epoch
-          
           model.train()
           if not params.aug_episodes:
             model.train_loop_finetune(epoch, base_loader,  optimizer)
@@ -216,9 +216,12 @@ if __name__=='__main__':
                 params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
             if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
                 params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+            if params.start_epoch > 401:
+                params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
             resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
         else:
-            
+            if params.start_epoch > 401:
+                custom_checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
             custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_baseline_aug"
             resume_file = get_assigned_file(custom_checkpoint_dir, params.start_epoch -1)
         
