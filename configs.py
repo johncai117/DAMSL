@@ -1,4 +1,4 @@
-save_dir                    = 'logs'
+save_dir                    = 'logs_21oct'
 
 miniImageNet_path           	= 'content/miniImagenet3'
 DTD_path 						= 'content/dtd/images/'

@@ -676,7 +676,7 @@ if __name__=='__main__':
       elif params.method == "gnnnet":
         scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      elif params.method = "Meta_FT":
+      elif params.method == "Meta_FT":
         scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       n_way = 5
       n_query = 15
