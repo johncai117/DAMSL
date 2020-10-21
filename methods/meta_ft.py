@@ -11,29 +11,17 @@ import random
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class Classifier(nn.Module):
-    def __init__(self, dim, n_way):
-        super(Classifier, self).__init__()
-        
-        self.fc = nn.Linear(dim, n_way)
-
-    def forward(self, x):
-        x = self.fc(x)
-        return x
-
-class GnnNet(MetaTemplate):
-  maml=False
+class Meta_FT(MetaTemplate):
   def __init__(self, model_func,  n_way, n_support):
-    super(GnnNet, self).__init__(model_func, n_way, n_support)
+    super(Meta_FT, self).__init__(model_func, n_way, n_support)
 
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
 
     # metric function
-    self.fc = nn.Sequential(nn.Linear(self.feat_dim, 128), nn.BatchNorm1d(128, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 128), backbone.BatchNorm1d_fw(128, track_running_stats=False))
-    self.gnn = GNN_nl(128 + self.n_way, 96, self.n_way)
-    self.method = 'GnnNet'
+    self.classifier = nn.Linear(self.feat_dim, self.n_way)
+    self.method = 'Meta_FT'
     
     # number of layers to allow to adapt during fine-tuning
     self.num_FT_block = 2 ##default
@@ -44,40 +32,16 @@ class GnnNet(MetaTemplate):
     else:
       self.num_FT_layers = (-9 * math.floor(self.num_FT_block / 2)) - 6
 
-    # fix label for training the metric function   1*nw(1 + ns)*nw
-    support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
-    support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
-    support_label = torch.cat([support_label, torch.zeros(self.n_way, 1, n_way)], dim=1)
-    self.support_label = support_label.view(1, -1, self.n_way)
-
   def cuda(self):
     self.feature.cuda()
-    self.fc.cuda()
-    self.gnn.cuda()
-    self.support_label = self.support_label.cuda()
+    self.classifier.cuda()
     return self
 
   def set_forward(self,x,is_feature=False):
-    x = x.cuda()
-
-    if is_feature:
-      # reshape the feature tensor: n_way * n_s + 15 * f
-      assert(x.size(1) == self.n_support + 15)
-      z = self.fc(x.view(-1, *x.size()[2:]))
-      z = z.view(self.n_way, -1, z.size(1))
-    else:
-      # get feature using encoder
-      x = x.view(-1, *x.size()[2:])
-      z = self.fc(self.feature(x))
-      z = z.view(self.n_way, -1, z.size(1))
-
-    # stack the feature for metric function: n_way * n_s + n_q * f -> n_q * [1 * n_way(n_s + 1) * f]
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
-    
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    scores = self.forward_gnn(z_stack)
+    x    = Variable(x.cuda())
+    out  = self.feature.forward(x)
+    scores  = self.classifier.forward(out)
     return scores
-
 
   def MAML_update(self):
     names = []
@@ -93,26 +57,16 @@ class GnnNet(MetaTemplate):
           dat_change = param2.data - param1.data ### Y - X
           new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
           param.data.copy_(new_dat)
+      for (name, param), (name1, param1), (name2, param2) in zip(self.classifier.named_parameters(), self.classifier2.named_parameters(), self.classifier3.named_parameters()):
+        dat_change = param2.data - param1.data ### Y - X
+        new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+        param.data.copy_(new_dat)
 
-  def MAML_update_gnn(self):
-    names = []
-    for name, param in self.feature.named_parameters():
-      if param.requires_grad:
-        #print(name)
-        names.append(name)
-    
-    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
-    if not self.first:
-      for (name, param), (name1, param1), (name2, param2) in zip(self.feature.named_parameters(), self.feature2.named_parameters(), self.feature3.named_parameters()):
-        if name not in names_sub:
-          dat_change = param2.data - param1.data ### Y - X
-          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
-          param.data.copy_(new_dat)
 
   def set_forward_finetune(self,x,is_feature=False, linear = False):
     x = x.to(device)
     # get feature using encoder
-    batch_size = 4
+    batch_size = 32
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
@@ -127,7 +81,7 @@ class GnnNet(MetaTemplate):
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
-    classifier = Classifier(self.feat_dim, self.n_way)
+    classifier = copy.deepcopy(self.classifier)
     delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
@@ -186,25 +140,18 @@ class GnnNet(MetaTemplate):
     self.feature2 = copy.deepcopy(self.feature)
     self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
     self.feature.load_state_dict(feat_network.state_dict())
+
+    self.classifier2 = copy.deepcopy(self.classifier)
+    self.classifier3 = copy.deepcopy(classifier)
+    self.classifier.load_state_dict(classifier.state_dict())
+
     
     for name, param  in self.feature.named_parameters():
         param.requires_grad = True    
 
-    output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1)
-
-    final = torch.cat((output_support, output_query), dim =1).cuda()
-
-
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
-    z = self.fc(final.view(-1, *final.size()[2:]))
-    z = z.view(self.n_way, -1, z.size(1))
-
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
-    
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    
-    scores = self.forward_gnn(z_stack)
+    #output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
+    output_query = self.feature(x_b_i.cuda())
+    scores = self.classifier(output_query)
     
     return scores
 
@@ -265,7 +212,7 @@ class GnnNet(MetaTemplate):
 
     delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.0001) ##try it with weight_decay
   
     total_epoch = self.ft_epoch 
 
@@ -305,25 +252,18 @@ class GnnNet(MetaTemplate):
       self.first = False
     self.feature2 = copy.deepcopy(self.feature)
     self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
-    self.feature.load_state_dict(feat_network.state_dict())
+    self.feature.load_state_dict(feat_network.state_dict())    
+    self.classifier2 = copy.deepcopy(self.classifier)
+    self.classifier3 = copy.deepcopy(classifier)
+    self.classifier.load_state_dict(classifier.state_dict())
+
     
     for name, param  in self.feature.named_parameters():
-        param.requires_grad = True
-    
-    output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1)
+        param.requires_grad = True    
 
-    final = torch.cat((output_support, output_query), dim =1).cuda()
-
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
-    z = self.fc(final.view(-1, *final.size()[2:]))
-    z = z.view(self.n_way, -1, z.size(1))
-
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
-    
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    
-    scores = self.forward_gnn(z_stack)   
+    #output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
+    output_query = self.feature(x_b_i.cuda())
+    scores = self.classifier(output_query)
 
     return scores
 

@@ -21,6 +21,7 @@ from methods.gnnnet import GnnNet
 import math
 from methods import dampnet
 from methods import dampnet_full
+from methods.meta_ft import Meta_FT
 
 
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
@@ -191,11 +192,6 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     return score
 
 
-
-
-
-
-
 def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
     ###############################################################################################
     # load pretrained model on miniImageNet
@@ -204,7 +200,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     state_temp = copy.deepcopy(state_in)
 
     state_keys = list(state_temp.keys())
-
+    classifier_found = False
     ### modify key names to fit
     for _, key in enumerate(state_keys):
         if "module." in key and "feature." in key:
@@ -222,8 +218,10 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     model = model.to(device)
     
     ###############################################################################################
-
-    classifier = Classifier(pretrained_model.final_feat_dim, n_way)
+    if linear and classifier_found:
+      classifier = model.classifier
+    else:
+      classifier = Classifier(pretrained_model.final_feat_dim, n_way)
 
     ###############################################################################################
     if torch.cuda.device_count() > 1 and params.parallel:
@@ -283,7 +281,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         param.requires_grad = False
 
     if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01, weight_decay= 0.001)
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
 
     pretrained_model.to(device)
@@ -479,6 +477,8 @@ if __name__=='__main__':
   
   elif params.method in ["dampnet_full_class"]:
         model           = dampnet_full_class.DampNet( model_dict[params.model], **few_shot_params)
+  elif params.method in ["meta_ft"]:
+        model           = Meta_FT( model_dict[params.model], **few_shot_params)
   elif params.method == "baseline":
         checkpoint_dir_b = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, pretrained_dataset, params.model, "baseline")
         if params.train_aug:
@@ -552,6 +552,11 @@ if __name__=='__main__':
                       state.pop(key)
                   if "feature3." in key:
                       state.pop(key)
+                  if "classifier2." in key:
+                      state.pop(key)
+                  if "classifier3." in key:
+                      state.pop(key)
+                  
               model.load_state_dict(state)
   elif params.method == "all":
         
@@ -579,6 +584,10 @@ if __name__=='__main__':
                         state2.pop(key)
                     if "feature3." in key:
                         state2.pop(key)
+                    if "classifier2." in key:
+                      state.pop(key)
+                    if "classifier3." in key:
+                        state.pop(key)
                 model_2.load_state_dict(state2)
                 
                 model_2.num_FT_block = params.num_FT_block
@@ -633,10 +642,7 @@ if __name__=='__main__':
   acc_all = []
   start_epoch = params.start_epoch
   stop_epoch = params.stop_epoch
-  print (freeze_backbone)
   
-
-
   # replace finetine() with your own method
   iter_num = 600
   #print(iter_num)
@@ -670,7 +676,8 @@ if __name__=='__main__':
       elif params.method == "gnnnet":
         scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-
+      elif params.method = "Meta_FT":
+        scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       n_way = 5
       n_query = 15
 
