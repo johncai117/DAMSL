@@ -112,6 +112,24 @@ class GnnNet(MetaTemplate):
           if i % print_freq==0:
               #print(optimizer.state_dict()['param_groups'][0]['lr'])
               print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+  def train_loop_finetune_ep_gnn(self, epoch, train_loader, optimizer ):
+      print_freq = 10
+
+      avg_loss=0
+      for i, elem in enumerate(train_loader):
+          liz_x = [x for (x,_) in elem]    
+          optimizer.zero_grad()
+          loss = self.set_forward_loss_finetune_ep_gnn( liz_x)
+          loss.backward()
+          optimizer.step()
+          self.MAML_update_gnn() ## part that is diff
+          avg_loss = avg_loss+loss.item()
+
+          if i % print_freq==0:
+              #print(optimizer.state_dict()['param_groups'][0]['lr'])
+              print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+  
+  
   def MAML_update(self):
     names = []
     for name, param in self.feature.named_parameters():
@@ -254,7 +272,7 @@ class GnnNet(MetaTemplate):
 
     x_var = Variable(x)
       
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
+    #y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
 
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
@@ -262,17 +280,21 @@ class GnnNet(MetaTemplate):
     
     ### to load all the changed examples
 
-    x_a_i_new = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
-    y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
-    for i, x_aug in enumerate(liz_x):
-      if not i == random_int:
-        x_aug = x_aug.to(device)
-        x_aug = Variable(x_aug)
-        x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:])
-        y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
-        x_a_i_new = torch.cat((x_a_i_new, x_a_aug), dim = 0)
-        y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
+    #x_a_i_new = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
+    #y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
+
+    x_liz = torch.stack(liz_x).to(device)
+
+    x_liz = x_liz[:,:,:self.n_support,:,:,:].contiguous()
+
+    x_liz = x_liz.view(len(liz_x) * self.n_way * self.n_support, *x_liz.size()[3:])
+
+
+    y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
     
+    y_a_aug = y_a_aug.repeat(len(liz_x), *y_a_aug.size()[1:])
+    x_a_i_new = Variable(x_liz).to(device)
+    y_a_i = y_a_aug    
 
     feat_network = copy.deepcopy(self.feature)
     classifier = Classifier(self.feat_dim, self.n_way)
@@ -304,22 +326,24 @@ class GnnNet(MetaTemplate):
 
     classifier.cuda()
     feat_network.cuda()
-
-    lengt = len(liz_x) +1
+    
+    lengt = len(liz_x)
+    total_len = support_size * lengt 
+    
     for epoch in range(total_epoch):
-        rand_id = np.random.permutation(support_size * lengt)
-        for j in range(0, support_size * lengt, batch_size):
+        rand_id = np.random.permutation(total_len)
+        for j in range(0, total_len, batch_size):
             classifier_opt.zero_grad()
             delta_opt.zero_grad()
             #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
+            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, total_len)]).to(device)
             
-            z_batch = x_a_i_new[selected_id].to(device)
+            z_batch = x_a_i_new[selected_id]
 
             y_batch = y_a_i[selected_id]
 
-            #####################################
 
+            #####################################
             output = feat_network(z_batch)
 
             scores  = classifier(output)
@@ -363,41 +387,56 @@ class GnnNet(MetaTemplate):
     self.n_query = n_query
     x = x.to(device)
     # get feature using encoder
-    batch_size = 6
+    batch_size = 32
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
       param.requires_grad = True
 
     x_var = Variable(x)
-      
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
+    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous()
+    x_b_i = x_b_i.view( self.n_way* self.n_query,   *x.size()[2:]) 
+    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous()
 
-    self.MAML_update_gnn() ## call MAML update
-    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
-    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
+
+
+    
+    y_a_i = y_a_i.view(self.n_way, self.n_support).unsqueeze(0)
+    y_a_i = y_a_i.repeat(len(liz_x), *y_a_i.size()[1:])
+
+    x_liz = torch.stack(liz_x).to(device)
+    x_liz = x_liz[:,:,:self.n_support,:,:,:].contiguous()
+    
+    print(y_a_i.shape)
+    print(x_liz.shape)
+    print(hello)
+    
+    x_a_i = x_a_i.unsqueeze(0)
+    #x_a_i = x_a_i.view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
+    print(x_a_i.shape)
     x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:])
     
     ### to load all the changed examples
+    #print(hello)
 
-    x_a_i_new = x_a_i
     for i, x_aug in enumerate(liz_x):
       if i > 1: ## past the second one
         x_aug = x_aug.to(device)
         x_aug = Variable(x_aug)
         x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous()
-        x_a_aug = x_a_aug.view( self.n_way* self.n_support, *x.size()[2:])
+        x_a_aug = x_a_aug.unsqueeze(0)
         y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
-        x_a_i_new = torch.cat((x_a_i_new, x_a_aug), dim = 0)
+        y_a_aug = y_a_aug.view(self.n_way, self.n_support).unsqueeze(0)
+        x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
         y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
     
+    print(x_a_i.shape)
+    print(y_a_i.shape)
+    print(hello)
 
     feat_network = copy.deepcopy(self.feature)
     fc_network = copy.deepcopy(self.fc)
-    gnn_network = copy.deepcopy(self.gnn)
-    #classifier = Classifier(self.feat_dim, self.n_way)
-    
-    
+    gnn_network = copy.deepcopy(self.gnn)    
     names = []
     for name, param in feat_network.named_parameters():
       if param.requires_grad:
@@ -506,5 +545,12 @@ class GnnNet(MetaTemplate):
     y_query = y_query.cuda()
     
     scores = self.set_forward_finetune_ep(liz_x)
+    loss = self.loss_fn(scores, y_query)
+    return loss
+  def set_forward_loss_finetune_ep_gnn(self, liz_x):
+    y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query))
+    y_query = y_query.cuda()
+    
+    scores = self.set_forward_finetune_ep_gnn(liz_x)
     loss = self.loss_fn(scores, y_query)
     return loss

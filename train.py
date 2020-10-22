@@ -65,7 +65,10 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
           if not params.aug_episodes:
             model.train_loop_finetune(epoch, base_loader,  optimizer)
           else:
-            model.train_loop_finetune_ep(epoch, base_loader, optimizer)
+            if not params.maml_gnn:
+                model.train_loop_finetune_ep(epoch, base_loader, optimizer)
+            else:
+                model.train_loop_finetune_ep_gnn(epoch, base_loader, optimizer)
           
           if not os.path.isdir(params.checkpoint_dir):
               os.makedirs(params.checkpoint_dir)
@@ -212,13 +215,24 @@ if __name__=='__main__':
   
     if params.start_epoch > 0:
         if params.method not in ["meta_ft"]:
-            if params.fine_tune and not params.num_FT_block == 1: ##
-                params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-            if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
-                params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
             if params.start_epoch > 401:
-                params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
-            resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+                if params.fine_tune and not params.num_FT_block == 1: ##
+                    params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+                if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+                    params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+                    params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                if params.maml_gnn:
+                    params.checkpoint_dir += "_" + "MAML_GNN"
+                resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+            else:
+                resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+                if params.fine_tune and not params.num_FT_block == 1: ##
+                    params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+                if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+                    params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+                    params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                if params.maml_gnn:
+                    params.checkpoint_dir += "_" + "MAML_GNN"
         else:
             if params.start_epoch > 401:
                 custom_checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"

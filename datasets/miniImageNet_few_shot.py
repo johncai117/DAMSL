@@ -126,7 +126,7 @@ class SetDataset2:
         return len(self.sub_dataloader)
 
 class SubDataset:
-    def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
+    def __init__(self, sub_meta, cl, d, transform=transforms.ToTensor(), target_transform=identity):
         self.sub_meta = sub_meta
         self.cl = cl
         self.transform = transform

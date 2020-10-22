@@ -153,7 +153,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         pretrained_model.train()
     else:
         pretrained_model.eval()
-    total_epoch = 20
+    total_epoch = 10
     classifier.train()
     lengt = len(liz_x) +1
 
