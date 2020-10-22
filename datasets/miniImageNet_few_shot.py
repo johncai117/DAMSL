@@ -241,7 +241,7 @@ class TransformLoader:
 class TransformLoader2:
     def __init__(self, image_size,
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.4, Contrast=0.4, Color=0.25)):
+                 jitter_param       = dict(Brightness=0.4, Contrast=0.4, Color=0.4)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
@@ -252,7 +252,7 @@ class TransformLoader2:
             return method
         method = getattr(transforms, transform_type)
         if transform_type=='RandomResizedCrop':
-            return method(self.image_size, scale=(0.3, 0.9))
+            return method(self.image_size, scale=(0.1, 0.8))
         elif transform_type=='CenterCrop':
             return method(self.image_size)
         elif transform_type=='Resize':
@@ -264,7 +264,7 @@ class TransformLoader2:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomResizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
+            transform_list = ['RandomResizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip', 'ToTensor', 'Normalize']
         else:
             transform_list = ['Resize','CenterCrop', 'ToTensor', 'Normalize']
 
