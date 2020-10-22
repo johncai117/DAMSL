@@ -11,6 +11,16 @@ import random
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+def indices_merged_arr(arr):
+    m,n = arr.shape
+    I,J = np.ogrid[:m,:n]
+    out = np.empty((m,n,3), dtype=arr.dtype)
+    out[...,0] = arr
+    out[...,1] = I
+    out[...,2] = J
+    out.shape = (-1,3)
+    return out
+
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -159,6 +169,16 @@ class GnnNet(MetaTemplate):
           dat_change = param2.data - param1.data ### Y - X
           new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
           param.data.copy_(new_dat)
+      for (name, param), (name1, param1), (name2, param2) in zip(self.gnn.named_parameters(), self.gnn2.named_parameters(), self.gnn3.named_parameters()):
+        if name not in names_sub:
+          dat_change = param2.data - param1.data ### Y - X
+          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+          param.data.copy_(new_dat)
+      for (name, param), (name1, param1), (name2, param2) in zip(self.fc.named_parameters(), self.fc2.named_parameters(), self.fc3.named_parameters()):
+        if name not in names_sub:
+          dat_change = param2.data - param1.data ### Y - X
+          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+          param.data.copy_(new_dat)
 
   def set_forward_finetune(self,x,is_feature=False, linear = False):
     x = x.to(device)
@@ -292,7 +312,7 @@ class GnnNet(MetaTemplate):
 
     y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
     
-    y_a_aug = y_a_aug.repeat(len(liz_x), *y_a_aug.size()[1:])
+    y_a_aug = y_a_aug.repeat(len(liz_x))
     x_a_i_new = Variable(x_liz).to(device)
     y_a_i = y_a_aug    
 
@@ -387,52 +407,30 @@ class GnnNet(MetaTemplate):
     self.n_query = n_query
     x = x.to(device)
     # get feature using encoder
-    batch_size = 32
+    
     support_size = self.n_way * self.n_support 
-
+    batch_size = support_size
     for name, param  in self.feature.named_parameters():
       param.requires_grad = True
 
     x_var = Variable(x)
-    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous()
-    x_b_i = x_b_i.view( self.n_way* self.n_query,   *x.size()[2:]) 
-    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous()
+    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
+    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
 
-
-
-    
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
     y_a_i = y_a_i.view(self.n_way, self.n_support).unsqueeze(0)
-    y_a_i = y_a_i.repeat(len(liz_x), *y_a_i.size()[1:])
+    y_a_i = y_a_i.repeat(len(liz_x), 1, 1)
 
     x_liz = torch.stack(liz_x).to(device)
     x_liz = x_liz[:,:,:self.n_support,:,:,:].contiguous()
     
-    print(y_a_i.shape)
-    print(x_liz.shape)
-    print(hello)
-    
-    x_a_i = x_a_i.unsqueeze(0)
-    #x_a_i = x_a_i.view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    print(x_a_i.shape)
-    x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:])
-    
+    #print(y_a_i.shape)
+    #print(x_liz.shape)
+      
     ### to load all the changed examples
     #print(hello)
 
-    for i, x_aug in enumerate(liz_x):
-      if i > 1: ## past the second one
-        x_aug = x_aug.to(device)
-        x_aug = Variable(x_aug)
-        x_a_aug = x_aug[:,:self.n_support,:,:,:].contiguous()
-        x_a_aug = x_a_aug.unsqueeze(0)
-        y_a_aug = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).to(device)
-        y_a_aug = y_a_aug.view(self.n_way, self.n_support).unsqueeze(0)
-        x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
-        y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
-    
-    print(x_a_i.shape)
-    print(y_a_i.shape)
-    print(hello)
+    x_a_i_new = Variable(x_liz).to(device)
 
     feat_network = copy.deepcopy(self.feature)
     fc_network = copy.deepcopy(self.fc)
@@ -440,7 +438,6 @@ class GnnNet(MetaTemplate):
     names = []
     for name, param in feat_network.named_parameters():
       if param.requires_grad:
-        #print(name)
         names.append(name)
     
     assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
@@ -449,7 +446,6 @@ class GnnNet(MetaTemplate):
 
     for name, param in feat_network.named_parameters():
       if name in names_sub:
-        #print(name)
         param.requires_grad = False    
 
     delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
@@ -467,35 +463,72 @@ class GnnNet(MetaTemplate):
     fc_network.cuda()
     feat_network.cuda()
 
-    lengt = len(liz_x) +1
+    lengt = len(liz_x)
     for epoch in range(total_epoch):
-        rand_id = np.random.permutation(support_size * lengt)
-        for j in range(0, support_size * lengt, batch_size):
+        rand_arr = np.repeat(np.expand_dims(np.arange(lengt), 1), self.n_way * self.n_support, axis = 1).T
+        np.apply_along_axis(np.random.shuffle,1,rand_arr)
+        
+        for j in range(0, lengt):
             delta_opt.zero_grad()
             gnn_opt.zero_grad()
             fc_opt.zero_grad()
 
-            #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
+            ###random extractor
+            support_id = rand_arr[:,j].reshape(self.n_way, self.n_support)
+            selector = [x for x in range(rand_arr.shape[1]) if x != j]
+            pseudo_query_id = np.apply_along_axis(np.random.choice,1,rand_arr[:,selector]).reshape(self.n_way, self.n_support)
             
-            z_batch = x_a_i_new[selected_id].to(device)
-            y_batch = y_a_i[selected_id] 
+            support_id = indices_merged_arr(support_id).T
+            pseudo_query_id = indices_merged_arr(pseudo_query_id).T
+
+            z_batch = x_a_i_new[support_id]
+            y_batch = y_a_i[support_id]
+
+            p_batch = x_a_i_new[pseudo_query_id]
+            p_y_batch = y_a_i[pseudo_query_id]
+   
             #####################################
 
-            output = feat_network(z_batch)
-            scores  = classifier(output)
-            loss = loss_fn(output, y_batch)
+            p_output_support = feat_network(z_batch).view(self.n_way, self.n_support, -1)
+            p_output_query = feat_network(p_batch)
+            p_output_query = p_output_query.view(self.n_way, self.n_support, -1)
+
+            p_final = torch.cat((p_output_support, p_output_query), dim =1).cuda()
+
+            p_z = fc_network(p_final.view(-1, *p_final.size()[2:]))
+            p_z = p_z.view(self.n_way, -1, p_z.size(1))
+
+            p_z_stack = [torch.cat([p_z[:, :self.n_support], p_z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, p_z.size(2)) for i in range(self.n_support)]
+            
+            nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in p_z_stack], dim=0)
+            p_scores = gnn_network(nodes)
+
+            # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
+            p_scores = p_scores.view(self.n_support, self.n_way, self.n_support + 1, self.n_way)[:, :, -1].permute(1, 0, 2).contiguous().view(-1, self.n_way)
+
+            loss = loss_fn(p_scores, p_y_batch)
 
             #####################################
             loss.backward()
-            classifier_opt.step()
+            gnn_opt.step()
+            fc_opt.step()
             delta_opt.step()
     
     if self.first == True:
       self.first = False
+
+    ### Copy step
     self.feature2 = copy.deepcopy(self.feature)
     self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
     self.feature.load_state_dict(feat_network.state_dict())
+
+    self.gnn2 = copy.deepcopy(self.gnn)
+    self.gnn3 = copy.deepcopy(gnn_network) ## before the new state_dict is copied over
+    self.gnn.load_state_dict(gnn_network.state_dict())
+
+    self.fc2 = copy.deepcopy(self.fc)
+    self.fc3 = copy.deepcopy(fc_network) ## before the new state_dict is copied over
+    self.fc.load_state_dict(fc_network.state_dict())
     
     for name, param  in self.feature.named_parameters():
         param.requires_grad = True
