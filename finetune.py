@@ -211,9 +211,11 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         elif "feature." in key:
             newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
             state_temp[newkey] = state_temp.pop(key)
+        elif "classifier" in key:
+            classifier_found = True
+            state_temp.pop(key)
         else:
             state_temp.pop(key)
-
 
     pretrained_model.load_state_dict(state_temp)
 
@@ -583,7 +585,7 @@ if __name__=='__main__':
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
                 checkpoint_dir2 += "_" + str(params.change_FT_dir) + "FT_epoch"
               if params.optimizer_inner == "Adam":
-                checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                checkpoint_dir2 += "_" + str(params.optimizer_inner) + "_optim"
               
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               

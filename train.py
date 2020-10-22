@@ -228,6 +228,8 @@ if __name__=='__main__':
                 resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
                 if params.fine_tune and not params.num_FT_block == 1: ##
                     params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+                
+                ## fix theses stuff
                 if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
                     params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
                     params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
@@ -235,8 +237,10 @@ if __name__=='__main__':
                     params.checkpoint_dir += "_" + "MAML_GNN"
         else:
             if params.start_epoch > 401:
+                custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_meta_ft_aug_5way_" + str(params.n_shot) + "shot"
                 custom_checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
-            custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_baseline_aug"
+            else:
+                custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_baseline_aug"
             resume_file = get_assigned_file(custom_checkpoint_dir, params.start_epoch -1)
         
         if resume_file is not None:
@@ -260,11 +264,15 @@ if __name__=='__main__':
         else:
             state_temp = copy.deepcopy(state)
             state_keys = list(state_temp.keys())
-            for _, key in enumerate(state_keys):
-                if "feature." in key:
-                    newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-                    state_temp[newkey] = state_temp.pop(key)
-            model.feature.load_state_dict(state_temp)
+            if params.start_epoch == 401:
+                for _, key in enumerate(state_keys):
+                    if "feature." in key:
+                        newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+                        state_temp[newkey] = state_temp.pop(key)
+            
+                model.feature.load_state_dict(state_temp)
+            else:
+                model.load_state_dict(state_temp)
 
 
       
