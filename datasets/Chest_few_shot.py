@@ -407,33 +407,16 @@ class SetDataManager2(DataManager):
         self.trans_loader = TransformLoader(image_size)
 
     def get_data_loader(self, num_aug = 4): #parameters that would change on train/val set
-        #transform = self.trans_loader.get_composed_transform(False)
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
-        #dataset = SetDataset2(self.batch_size, transform, self.dat)
-        #dataset2 = SetDataset2(self.batch_size, transform, self.dat)
+
         sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
         perms = sampler.generate_perm()
 
         data_loader_params = dict(batch_sampler = sampler, shuffle = False, num_workers = 0, pin_memory = True)       
-        
-        #dataset_list = [dataset] + [dataset2] ## for checking later
-        #print(len(dataset_list))
-        #or i in range(num_aug):
-          #transform2 = TransformLoader(self.image_size).get_composed_transform(True)
-          #dataset2 = SetDataset2(self.batch_size, transform2, self.dat)
-          #dataset_list.append(dataset2)
-        #dataset_chain = ConcatDataset(dataset_list)
+    
         
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
-        #print(data_loader)
-        #for i, elem in enumerate(data_loader):
-            #print(elem[0][0][2])
-            #print("ELEM")
-            #print(elem[1][0][2])
-            #print(len(elem))
-            #print(elem[1][0].shape)
-            #print(hello)
-        #print(hello)
+   
        
         return data_loader
 

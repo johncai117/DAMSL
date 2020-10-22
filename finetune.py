@@ -99,7 +99,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     x_var = Variable(x)
 
 
-    batch_size = 5
+    batch_size = 32
     support_size = n_way * n_support 
     
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
@@ -153,20 +153,21 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         pretrained_model.train()
     else:
         pretrained_model.eval()
-    
+    total_epoch = 20
     classifier.train()
+    lengt = len(liz_x) +1
 
-    for epoch in range(20):
-        rand_id = np.random.permutation(support_size)
-
-        for j in range(0, support_size, batch_size):
+    iter_list = list(range(0, support_size * lengt, batch_size))
+    
+    for epoch in range(total_epoch):
+        rand_id = np.random.permutation(support_size * lengt)
+        for j in iter_list:
             classifier_opt.zero_grad()
             if freeze_backbone is False:
                 delta_opt.zero_grad()
 
             #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size)]).to(device)
-            
+            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
             z_batch = x_a_i[selected_id].to(device)
             y_batch = y_a_i[selected_id] 
             #####################################
@@ -182,6 +183,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
             
             if freeze_backbone is False:
                 delta_opt.step()
+
 
     pretrained_model.eval()
     classifier.eval()
@@ -303,10 +305,11 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     #pretrained_model_fixed.eval()
     classifier.train()
     lengt = len(liz_x) +1
+    
+    iter_list = list(range(0, support_size * lengt, batch_size))
     for epoch in range(total_epoch):
         rand_id = np.random.permutation(support_size * lengt)
-
-        for j in range(0, support_size * lengt, batch_size):
+        for j in iter_list:
             classifier_opt.zero_grad()
             if freeze_backbone is False:
                 delta_opt.zero_grad()
@@ -543,9 +546,10 @@ if __name__=='__main__':
           if params.fine_tune and not params.num_FT_block == 1:
             checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
           if params.change_FT_dir > 0:
-            params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-            params.checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
-
+            checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+            checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
+          if params.optimizer_inner == "Adam":
+            checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
           else:
@@ -564,8 +568,8 @@ if __name__=='__main__':
                       state.pop(key)
                   if "classifier3." in key:
                       state.pop(key)
-                  
               model.load_state_dict(state)
+              print(checkpoint_dir)
   elif params.method == "all":
         
                 
@@ -578,6 +582,9 @@ if __name__=='__main__':
               if params.change_FT_dir > 0:
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
                 checkpoint_dir2 += "_" + str(params.change_FT_dir) + "FT_epoch"
+              if params.optimizer_inner == "Adam":
+                checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+              
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)

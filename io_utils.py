@@ -33,6 +33,7 @@ def parse_args(script):
     if script == 'train':
         parser.add_argument('--fine_tune'   , action='store_true',  help='fine tuning during training ') 
         parser.add_argument('--aug_episodes', action='store_true',      help='augmentation epsidoes during fine tuning ') 
+        parser.add_argument('--maml_gnn', action='store_true',      help='augmentation epsidoes during fine tuning ') 
         parser.add_argument('--num_classes' , default=200, type=int, help='total number of classes in softmax, only used in baseline') #make it larger than the maximum label value in base class
         parser.add_argument('--save_freq'   , default=50, type=int, help='Save frequency')
         parser.add_argument('--start_epoch' , default=0, type=int,help ='Starting epoch')
