@@ -694,6 +694,9 @@ if __name__=='__main__':
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "meta_ft":
         scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+      elif params.method == "meta_ft_proto":
+        scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+      
       n_way = 5
       n_query = 15
 
