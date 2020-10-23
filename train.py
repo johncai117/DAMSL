@@ -19,6 +19,7 @@ from methods.protonet import ProtoNet
 from methods.dampnet import DampNet
 from methods import dampnet_full
 from methods.meta_ft import Meta_FT
+from methods.meta_ft_proto import Meta_FT_Proto
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
 
@@ -157,6 +158,8 @@ if __name__=='__main__':
             model           = MetaOptNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'meta_ft':
             model = Meta_FT(model_dict[params.model], **train_few_shot_params)
+        elif params.method == 'meta_ft_proto':
+            model = Meta_FT_Proto(model_dict[params.model], **train_few_shot_params)
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'gnnnet_maml':

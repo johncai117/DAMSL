@@ -283,7 +283,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
       if name in names_sub:
         param.requires_grad = False
 
-    if params.optimizer_inner == "Adam":
+    if params.optimizer_inner in ["Adam", "change_Adam"]:
       classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
 
       if freeze_backbone is False:
@@ -549,8 +549,8 @@ if __name__=='__main__':
             checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
           if params.change_FT_dir > 0:
             checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-            checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
-          if params.optimizer_inner == "Adam":
+            #checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
+          if params.optimizer_inner == "change_Adam":
             checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
