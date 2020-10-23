@@ -114,7 +114,7 @@ class Meta_FT_Proto(MetaTemplate):
   def set_forward_finetune(self,x,is_feature=False, linear = False):
     x = x.to(device)
     # get feature using encoder
-    batch_size = 32
+    batch_size = 8
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
@@ -149,7 +149,7 @@ class Meta_FT_Proto(MetaTemplate):
         #print(name)
         param.requires_grad = False    
   
-    total_epoch = 5 ## changed this
+    total_epoch = 3 ## changed this
 
     feat_network.train()
 
@@ -198,7 +198,7 @@ class Meta_FT_Proto(MetaTemplate):
     output_query = self.feature(x_b_i.cuda()).view(self.n_way * self.n_query, -1)
     output_support = self.feature(x_a_i.cuda())
     output_proto = output_support.view(self.n_way, self.n_support, -1).mean(1)
-    dists = euclidean_dist(output_query, output_support)
+    dists = euclidean_dist(output_query, output_proto)
     scores = -dists
     
     return scores
