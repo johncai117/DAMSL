@@ -438,6 +438,7 @@ class ResNet(nn.Module):
         out = self.trunk(x)
         return out
 
+
 class ResNet_3(nn.Module):
     def __init__(self,block,list_of_num_layers, list_of_out_dims, flatten = False):
         # list_of_num_layers specifies number of layers in each stage

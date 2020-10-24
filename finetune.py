@@ -125,7 +125,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().to(device)
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001)
+    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.005, momentum = 0.9, weight_decay=0.00001)
     
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -283,16 +283,11 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
       if name in names_sub:
         param.requires_grad = False
 
-    if params.optimizer_inner in ["Adam", "change_Adam"]:
-      classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
+    #if params.optimizer_inner in ["Adam", "change_Adam"]:
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
 
-      if freeze_backbone is False:
-          delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
-    elif params.optimizer_inner == "SGD":
-      classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
-
-      if freeze_backbone is False:
-          delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+    if freeze_backbone is False:
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
     pretrained_model.to(device)
     classifier.to(device)
@@ -554,6 +549,8 @@ if __name__=='__main__':
             #checkpoint_dir += "_" + str(params.change_FT_dir) + "FT_epoch"
           if params.optimizer_inner == "change_Adam":
             checkpoint_dir += "_" + "Adam" + "_optim"
+          elif params.optimizer_inner == "SGD":
+            checkpoint_dir += "_" + "SGD" + "_optim"
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
           else:

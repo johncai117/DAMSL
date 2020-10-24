@@ -131,7 +131,7 @@ class Meta_FT_Proto(MetaTemplate):
     if self.optimizer == "Adam":
       delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     elif self.optimizer == "SGD":
-      delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005)
     
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     names = []
@@ -149,7 +149,7 @@ class Meta_FT_Proto(MetaTemplate):
         #print(name)
         param.requires_grad = False    
   
-    total_epoch = 3 ## changed this
+    total_epoch = 5 ## changed this
 
     feat_network.train()
 
