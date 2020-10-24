@@ -246,7 +246,7 @@ class TransformLoader:
 class TransformLoader2:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.1, Contrast=0.1, Color=0.05)):
+                 jitter_param       = dict(Brightness=0.3, Contrast=0.3, Color=0.05)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
@@ -269,7 +269,7 @@ class TransformLoader2:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
+            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlips' 'ToTensor', 'Normalize']
         else:
             transform_list = ['Scale','CenterCrop', 'ToTensor', 'Normalize']
 
@@ -301,20 +301,6 @@ class SimpleDataManager(DataManager):
 
         return data_loader
 
-class SimpleDataManager(DataManager):
-    def __init__(self, image_size, batch_size):        
-        super(SimpleDataManager, self).__init__()
-        self.batch_size = batch_size
-        self.trans_loader = TransformLoader(image_size)
-
-    def get_data_loader(self, aug): #parameters that would change on train/val set
-        transform = self.trans_loader.get_composed_transform(aug)
-        dataset = SimpleDataset(transform)
-
-        data_loader_params = dict(batch_size = self.batch_size, shuffle = False, num_workers = 12, pin_memory = True)       
-        data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
-
-        return data_loader
 
 class SetDataManager(DataManager):
     def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100):        
