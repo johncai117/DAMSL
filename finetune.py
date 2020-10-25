@@ -244,7 +244,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     x_var = Variable(x)
 
 
-    batch_size = 32
+    batch_size = 16
     support_size = n_way * n_support 
     
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
@@ -284,10 +284,10 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         param.requires_grad = False
 
     #if params.optimizer_inner in ["Adam", "change_Adam"]:
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005, weight_decay = 0.0001)
 
     if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.005)
 
     pretrained_model.to(device)
     classifier.to(device)
@@ -336,6 +336,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
 
     #pretrained_model.eval() ## for transduction
     classifier.eval()
+    #output_query_original = pretrained_model(x_b_i.to(device))   
     if not linear:
       #model.eval() ## evaluation mode ## comment for transduction learning
       if flatten == True:
@@ -347,9 +348,9 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         #output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
       model.n_query = n_query
       if ds == True:
-        score = model.set_forward(output_all, is_feature = True, domain_shift = True)
+        score = model.set_forward(output_all, is_feature = True, domain_shift = True).detach()
       else:
-        score = model.set_forward(output_all, is_feature = True)
+        score = model.set_forward(output_all, is_feature = True).detach()
       #score = torch.nn.functional.softmax(score, dim = 1).detach()
     elif linear:
       output_query_original = pretrained_model(x_b_i.to(device))    
@@ -357,7 +358,8 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         output_query_original = flat(avgpool(output_query_original))
       score = classifier(output_query_original).detach()
       
-    score = torch.nn.functional.softmax(score, dim = 1)
+    score = torch.nn.functional.softmax(score.detach(), dim = 1)
+    #score += torch.nn.functional.softmax(classifier(output_query_original).detach(), dim = 1)
 
     return score
 

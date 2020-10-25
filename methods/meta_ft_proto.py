@@ -30,6 +30,8 @@ class Meta_FT_Proto(MetaTemplate):
 
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
+    self.classifier = nn.Linear(self.feat_dim, self.n_way)
+    self.classifier.cuda()
     self.first = True
 
     # metric function
@@ -68,10 +70,13 @@ class Meta_FT_Proto(MetaTemplate):
             if self.change_way:
                 self.n_way  = x.size(0)
             optimizer.zero_grad()
-            loss = self.set_forward_loss_finetune( x )
+     
+            loss = self.set_forward_loss_finetune_linear( x )
+            
             loss.backward()
             optimizer.step()
-            self.MAML_update()
+
+            self.MAML_update_linear()
             avg_loss = avg_loss+loss.item()
 
             if i % print_freq==0:
@@ -108,6 +113,25 @@ class Meta_FT_Proto(MetaTemplate):
           dat_change = param2.data - param1.data ### Y - X
           new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
           param.data.copy_(new_dat)
+  
+  def MAML_update_linear(self):
+    names = []
+    for name, param in self.feature.named_parameters():
+      if param.requires_grad:
+        #print(name)
+        names.append(name)
+    
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
+    if not self.first:
+      for (name, param), (name1, param1), (name2, param2) in zip(self.feature.named_parameters(), self.feature2.named_parameters(), self.feature3.named_parameters()):
+        if name not in names_sub:
+          dat_change = param2.data - param1.data ### Y - X
+          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+          param.data.copy_(new_dat)
+      for (name, param), (name1, param1), (name2, param2) in zip(self.classifier.named_parameters(), self.classifier2.named_parameters(), self.classifier3.named_parameters()):
+        dat_change = param2.data - param1.data ### Y - X
+        new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+        param.data.copy_(new_dat)
 
 
 
@@ -127,7 +151,7 @@ class Meta_FT_Proto(MetaTemplate):
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
-    
+
     if self.optimizer == "Adam":
       delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
     elif self.optimizer == "SGD":
@@ -200,6 +224,99 @@ class Meta_FT_Proto(MetaTemplate):
     output_proto = output_support.view(self.n_way, self.n_support, -1).mean(1)
     dists = euclidean_dist(output_query, output_proto)
     scores = -dists
+    
+    return scores
+
+  def set_forward_finetune_linear(self,x,is_feature=False, linear = False):
+    x = x.to(device)
+    # get feature using encoder
+    batch_size = 32
+    support_size = self.n_way * self.n_support 
+
+    for name, param  in self.feature.named_parameters():
+      param.requires_grad = True
+
+    x_var = Variable(x)
+      
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
+    
+    x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
+    x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
+    feat_network = copy.deepcopy(self.feature)
+    classifier = nn.Linear(self.feat_dim, self.n_way)
+    if self.optimizer == "Adam":
+      delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.0001) ##try it with weight_decay
+    elif self.optimizer == "SGD":
+      delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+      classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    
+    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
+    names = []
+    for name, param in feat_network.named_parameters():
+      if param.requires_grad:
+        #print(name)
+        names.append(name)
+    
+    assert self.num_FT_block <= 9, "cannot have more than 9 blocks unfrozen during training"
+    
+    names_sub = names[:self.num_FT_layers] ### last Resnet block can adapt
+
+    for name, param in feat_network.named_parameters():
+      if name in names_sub:
+        #print(name)
+        param.requires_grad = False    
+  
+    total_epoch = 15
+
+    classifier.train()
+    feat_network.train()
+
+    classifier.cuda()
+    feat_network.cuda()
+
+    for epoch in range(total_epoch):
+          rand_id = np.random.permutation(support_size)
+
+          for j in range(0, support_size, batch_size):
+              classifier_opt.zero_grad()
+              
+              delta_opt.zero_grad()
+
+              #####################################
+              selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size)]).cuda()
+              
+              z_batch = x_a_i[selected_id]
+              y_batch = y_a_i[selected_id] 
+              #####################################
+
+              output = feat_network(z_batch)
+              scores  = classifier(output)
+              loss = loss_fn(scores, y_batch)
+              #grad = torch.autograd.grad(set_loss, fast_parameters, create_graph=True)
+
+              #####################################
+              loss.backward() ### think about how to compute gradients and achieve a good initialization
+
+              classifier_opt.step()
+              delta_opt.step()
+    
+    if self.first == True:
+      self.first = False
+    self.feature2 = copy.deepcopy(self.feature)
+    self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
+    self.feature.load_state_dict(feat_network.state_dict())
+
+    self.classifier2 = copy.deepcopy(self.classifier)
+    self.classifier3 = copy.deepcopy(classifier)
+    self.classifier.load_state_dict(classifier.state_dict())
+    
+    for name, param  in self.feature.named_parameters():
+        param.requires_grad = True    
+
+    #output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
+    output_query = self.feature(x_b_i.cuda())
+    scores = self.classifier(output_query)
     
     return scores
 
@@ -319,6 +436,13 @@ class Meta_FT_Proto(MetaTemplate):
     y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query))
     y_query = y_query.cuda()
     scores = self.set_forward_finetune(x)
+    loss = self.loss_fn(scores, y_query)
+    return loss
+  
+  def set_forward_loss_finetune_linear(self, x):
+    y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query))
+    y_query = y_query.cuda()
+    scores = self.set_forward_finetune_linear(x)
     loss = self.loss_fn(scores, y_query)
     return loss
 

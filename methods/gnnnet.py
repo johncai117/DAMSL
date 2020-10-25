@@ -197,9 +197,9 @@ class GnnNet(MetaTemplate):
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
     classifier = Classifier(self.feat_dim, self.n_way)
-    delta_opt = torch.optim.SGD(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005) ##try it with weight_decay
     
     names = []
     for name, param in feat_network.named_parameters():
@@ -335,9 +335,9 @@ class GnnNet(MetaTemplate):
         #print(name)
         param.requires_grad = False    
 
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001) ##try it with weight_decay
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005, weight_decay=0.001) ##try it with weight_decay
   
     total_epoch = self.ft_epoch 
 
@@ -448,10 +448,10 @@ class GnnNet(MetaTemplate):
       if name in names_sub:
         param.requires_grad = False    
 
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    gnn_opt = torch.optim.Adam(gnn_network.parameters(), lr = 0.01) ##try it with weight_decay
-    fc_opt = torch.optim.Adam(fc_network.parameters(), lr = 0.01) ##try it with weight_decay
+    gnn_opt = torch.optim.Adam(gnn_network.parameters(), lr = 0.005) ##try it with weight_decay
+    fc_opt = torch.optim.Adam(fc_network.parameters(), lr = 0.005) ##try it with weight_decay
   
     total_epoch = self.ft_epoch ###change this
 

@@ -217,52 +217,52 @@ if __name__=='__main__':
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         model = DataParallelPassthrough(model, device_ids = [0,1,2,3])
-  
-    if params.start_epoch > 0:
-        if params.method not in ["meta_ft"]:
-            if params.start_epoch > 401:
-                if params.fine_tune and not params.num_FT_block == 1: ##
-                    params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-                if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
-                    params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
-                    params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
-                if params.maml_gnn:
-                    params.checkpoint_dir += "_" + "MAML_GNN"
-                resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+    if params.method == "gnnnet":
+        if params.start_epoch > 0:  
+            if params.method not in ["meta_ft"]:
+                if params.start_epoch > 401:
+                    if params.fine_tune and not params.num_FT_block == 1: ##
+                        params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+                    if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+                        params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+                        params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                    if params.maml_gnn:
+                        params.checkpoint_dir += "_" + "MAML_GNN"
+                    resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+                else:
+                    resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+                    if params.fine_tune and not params.num_FT_block == 1: ##
+                        params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
+                    
+                    ## fix theses stuff
+                    if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
+                        params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
+                        params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                    if params.maml_gnn:
+                        params.checkpoint_dir += "_" + "MAML_GNN"
             else:
-                resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
-                if params.fine_tune and not params.num_FT_block == 1: ##
-                    params.checkpoint_dir += "_" + str(params.num_FT_block) + "FT"
-                
-                ## fix theses stuff
-                if params.fine_tune_epoch != 3 and params.start_epoch >= 401:
-                    params.checkpoint_dir += "_" + str(params.fine_tune_epoch) + "FT_epoch"
-                    params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
-                if params.maml_gnn:
-                    params.checkpoint_dir += "_" + "MAML_GNN"
-        else:
-            if params.start_epoch > 401:
-                custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_meta_ft_aug_5way_" + str(params.n_shot) + "shot"
-                custom_checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
-            else:
-                custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_baseline_aug"
-            resume_file = get_assigned_file(custom_checkpoint_dir, params.start_epoch -1)
-        
-        if resume_file is not None:
-            tmp = torch.load(resume_file)
-            state = tmp['state']
-            state_keys = list(state.keys())
-            for _, key in enumerate(state_keys):
-                if "feature2." in key:
-                    state.pop(key)
-                if "feature3." in key:
-                    state.pop(key)
-                if "classifier2." in key:
-                    state.pop(key)
-                if "classifier3." in key:
-                    state.pop(key)
-                if params.start_epoch == 401 and "classifier." in key:
-                    state.pop(key)
+                if params.start_epoch > 401:
+                    custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_meta_ft_aug_5way_" + str(params.n_shot) + "shot"
+                    custom_checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
+                else:
+                    custom_checkpoint_dir = "logs/checkpoints/miniImageNet/ResNet10_baseline_aug"
+                resume_file = get_assigned_file(custom_checkpoint_dir, params.start_epoch -1)
+            
+            if resume_file is not None:
+                tmp = torch.load(resume_file)
+                state = tmp['state']
+                state_keys = list(state.keys())
+                for _, key in enumerate(state_keys):
+                    if "feature2." in key:
+                        state.pop(key)
+                    if "feature3." in key:
+                        state.pop(key)
+                    if "classifier2." in key:
+                        state.pop(key)
+                    if "classifier3." in key:
+                        state.pop(key)
+                    if params.start_epoch == 401 and "classifier." in key:
+                        state.pop(key)
                 
         if params.method not in ["meta_ft"]:
             model.load_state_dict(state)
@@ -278,6 +278,18 @@ if __name__=='__main__':
                 model.feature.load_state_dict(state_temp)
             else:
                 model.load_state_dict(state_temp)
+    else:
+        resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+        if resume_file is not None:
+            tmp = torch.load(resume_file)
+            state = tmp['state']
+            state_keys = list(state.keys())
+            for _, key in enumerate(state_keys):
+                if "feature2." in key:
+                    state.pop(key)
+                if "feature3." in key:
+                    state.pop(key)
+        model.load_state_dict(state)
 
 
       
