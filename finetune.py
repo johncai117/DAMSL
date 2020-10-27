@@ -193,7 +193,6 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     score = torch.nn.functional.softmax(score, dim = 1).detach()
     return score
 
-
 def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
     ###############################################################################################
     # load pretrained model on miniImageNet
@@ -363,6 +362,143 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
 
     return score
 
+
+def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
+    ###############################################################################################
+    model = model.to(device)
+    model.train()
+    for name, param  in model.feature.named_parameters():
+      param.requires_grad = True
+    feat_network = copy.deepcopy(model.feature)
+    fc_network = copy.deepcopy(model.fc)
+    gnn_network = copy.deepcopy(model.gnn)    
+    names = []
+    for name, param in feat_network.named_parameters():
+      if param.requires_grad:
+        names.append(name)
+    
+    names_sub = names[:model.num_FT_layers] ### last Resnet block can adapt. default is -9
+
+    for name, param in feat_network.named_parameters():
+      if name in names_sub:
+        param.requires_grad = False   
+    
+    x = liz_x[0] ### non-changed one
+    x = x.to(device)
+    # get feature using encoder
+    
+    support_size = n_way * n_support 
+    batch_size = support_size
+    
+
+    x_var = Variable(x)
+    x_b_i = x_var[:, model.n_support:,:,:,:].contiguous().view( model.n_way* model.n_query,   *x.size()[2:]) 
+    x_a_i = x_var[:,:model.n_support,:,:,:].contiguous().view( model.n_way* model.n_support, *x.size()[2:]) # (25, 3, 224, 224)
+
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( model.n_way ), model.n_support ) )).to(device)
+    y_a_i = y_a_i.view(model.n_way, model.n_support).unsqueeze(0)
+    y_a_i = y_a_i.repeat(len(liz_x), 1, 1)
+
+    x_liz = torch.stack(liz_x).to(device)
+    x_liz = x_liz[:,:,:model.n_support,:,:,:].contiguous()
+
+    x_a_i_new = Variable(x_liz).to(device)
+
+    gnn_network.train()
+    fc_network.train()
+    feat_network.train()
+
+    gnn_network.cuda()
+    fc_network.cuda()
+    feat_network.cuda()
+
+    
+    total_epoch = model.ft_epoch ###change this
+    
+   
+    pretrained_model.to(device)
+    classifier.to(device)
+
+    x = liz_x[0] ### non-changed one
+    
+    model.n_query = n_query
+    x = x.to(device)
+    x_var = Variable(x)
+
+
+    lengt = len(liz_x)
+    for epoch in range(total_epoch):
+        rand_arr = np.repeat(np.expand_dims(np.arange(lengt), 1), self.n_way * self.n_support, axis = 1).T
+        np.apply_along_axis(np.random.shuffle,1,rand_arr)
+        
+        for j in range(0, lengt):
+            delta_opt.zero_grad()
+            gnn_opt.zero_grad()
+            fc_opt.zero_grad()
+
+            ###random extractor
+            support_id = rand_arr[:,j].reshape(self.n_way, self.n_support)
+            selector = [x for x in range(rand_arr.shape[1]) if x != j]
+            pseudo_query_id = np.apply_along_axis(np.random.choice,1,rand_arr[:,selector]).reshape(self.n_way, self.n_support)
+            
+            support_id = indices_merged_arr(support_id).T
+            pseudo_query_id = indices_merged_arr(pseudo_query_id).T
+
+            z_batch = x_a_i_new[support_id]
+            y_batch = y_a_i[support_id]
+
+            p_batch = x_a_i_new[pseudo_query_id]
+            p_y_batch = y_a_i[pseudo_query_id]
+   
+            #####################################
+
+            p_output_support = feat_network(z_batch).view(self.n_way, self.n_support, -1)
+            p_output_query = feat_network(p_batch)
+            p_output_query = p_output_query.view(self.n_way, self.n_support, -1)
+
+            p_final = torch.cat((p_output_support, p_output_query), dim =1).cuda()
+
+            p_z = fc_network(p_final.view(-1, *p_final.size()[2:]))
+            p_z = p_z.view(self.n_way, -1, p_z.size(1))
+
+            p_z_stack = [torch.cat([p_z[:, :self.n_support], p_z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, p_z.size(2)) for i in range(self.n_support)]
+            
+            nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in p_z_stack], dim=0)
+            p_scores = gnn_network(nodes)
+
+            # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
+            p_scores = p_scores.view(self.n_support, self.n_way, self.n_support + 1, self.n_way)[:, :, -1].permute(1, 0, 2).contiguous().view(-1, self.n_way)
+
+            loss = loss_fn(p_scores, p_y_batch)
+
+            #####################################
+            loss.backward()
+            gnn_opt.step()
+            fc_opt.step()
+            delta_opt.step()
+
+    model.feature.load_state_dict(feat_network.state_dict())
+    model.gnn.load_state_dict(gnn_network.state_dict())
+    model.fc.load_state_dict(fc_network.state_dict())
+
+    output_support = model.feature(x_a_i.cuda()).view(model.n_way, model.n_support, -1)
+    output_query = model.feature(x_b_i.cuda()).view(model.n_way,model.n_query,-1)
+
+    final = torch.cat((output_support, output_query), dim =1).cuda()
+
+    assert(final.size(1) == model.n_support + 16) ##16 query samples in each batch
+    z = model.fc(final.view(-1, *final.size()[2:]))
+    z = z.view(model.n_way, -1, z.size(1))
+
+    z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(model.n_query)]
+    
+    assert(z_stack[0].size(1) == model.n_way*(model.n_support + 1))
+    
+    scores = model.forward_gnn(z_stack)   
+
+    scores = torch.nn.functional.softmax(scores, dim = 1).detach()
+
+    return scores
 
 def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5, linear = False): 
     ###############################################################################################
