@@ -23,6 +23,7 @@ from methods import dampnet
 from methods import dampnet_full
 from methods.meta_ft import Meta_FT
 from methods.meta_ft_proto import Meta_FT_Proto
+from methods.gnnnet import indices_merged_arr
 
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
 
@@ -386,8 +387,10 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
     x = liz_x[0] ### non-changed one
     x = x.to(device)
     # get feature using encoder
+    model.n_query = n_query
     
     support_size = n_way * n_support 
+    model.n_support = n_support
     batch_size = support_size
     
 
@@ -404,6 +407,11 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
 
     x_a_i_new = Variable(x_liz).to(device)
 
+    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005, weight_decay = 0.0001)
+    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
+    gnn_opt = torch.optim.Adam(gnn_network.parameters(), lr = 0.005, weight_decay = 0.0001) ##try it with weight_decay
+    fc_opt = torch.optim.Adam(fc_network.parameters(), lr = 0.005, weight_decay = 0.0001) ##try it with weight_decay
+  
     gnn_network.train()
     fc_network.train()
     feat_network.train()
@@ -411,24 +419,12 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
     gnn_network.cuda()
     fc_network.cuda()
     feat_network.cuda()
-
     
-    total_epoch = model.ft_epoch ###change this
-    
-   
-    pretrained_model.to(device)
-    classifier.to(device)
-
-    x = liz_x[0] ### non-changed one
-    
-    model.n_query = n_query
-    x = x.to(device)
-    x_var = Variable(x)
-
+    total_epoch = params.fine_tune_epoch ###change this
 
     lengt = len(liz_x)
     for epoch in range(total_epoch):
-        rand_arr = np.repeat(np.expand_dims(np.arange(lengt), 1), self.n_way * self.n_support, axis = 1).T
+        rand_arr = np.repeat(np.expand_dims(np.arange(lengt), 1), model.n_way * model.n_support, axis = 1).T
         np.apply_along_axis(np.random.shuffle,1,rand_arr)
         
         for j in range(0, lengt):
@@ -437,9 +433,9 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
             fc_opt.zero_grad()
 
             ###random extractor
-            support_id = rand_arr[:,j].reshape(self.n_way, self.n_support)
+            support_id = rand_arr[:,j].reshape(model.n_way, model.n_support)
             selector = [x for x in range(rand_arr.shape[1]) if x != j]
-            pseudo_query_id = np.apply_along_axis(np.random.choice,1,rand_arr[:,selector]).reshape(self.n_way, self.n_support)
+            pseudo_query_id = np.apply_along_axis(np.random.choice,1,rand_arr[:,selector]).reshape(model.n_way, model.n_support)
             
             support_id = indices_merged_arr(support_id).T
             pseudo_query_id = indices_merged_arr(pseudo_query_id).T
@@ -452,22 +448,22 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
    
             #####################################
 
-            p_output_support = feat_network(z_batch).view(self.n_way, self.n_support, -1)
+            p_output_support = feat_network(z_batch).view(model.n_way, model.n_support, -1)
             p_output_query = feat_network(p_batch)
-            p_output_query = p_output_query.view(self.n_way, self.n_support, -1)
+            p_output_query = p_output_query.view(model.n_way, model.n_support, -1)
 
             p_final = torch.cat((p_output_support, p_output_query), dim =1).cuda()
 
             p_z = fc_network(p_final.view(-1, *p_final.size()[2:]))
-            p_z = p_z.view(self.n_way, -1, p_z.size(1))
+            p_z = p_z.view(model.n_way, -1, p_z.size(1))
 
-            p_z_stack = [torch.cat([p_z[:, :self.n_support], p_z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, p_z.size(2)) for i in range(self.n_support)]
+            p_z_stack = [torch.cat([p_z[:, :model.n_support], p_z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, p_z.size(2)) for i in range(model.n_support)]
             
-            nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in p_z_stack], dim=0)
+            nodes = torch.cat([torch.cat([z, model.support_label.to(device)], dim=2) for z in p_z_stack], dim=0)
             p_scores = gnn_network(nodes)
 
             # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
-            p_scores = p_scores.view(self.n_support, self.n_way, self.n_support + 1, self.n_way)[:, :, -1].permute(1, 0, 2).contiguous().view(-1, self.n_way)
+            p_scores = p_scores.view(model.n_support, model.n_way, model.n_support + 1, model.n_way)[:, :, -1].permute(1, 0, 2).contiguous().view(-1, model.n_way)
 
             loss = loss_fn(p_scores, p_y_batch)
 
@@ -486,13 +482,10 @@ def finetune_gnn(liz_x,y, model, state_in, save_it, linear = False, flatten = Tr
 
     final = torch.cat((output_support, output_query), dim =1).cuda()
 
-    assert(final.size(1) == model.n_support + 16) ##16 query samples in each batch
     z = model.fc(final.view(-1, *final.size()[2:]))
     z = z.view(model.n_way, -1, z.size(1))
 
     z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(model.n_query)]
-    
-    assert(z_stack[0].size(1) == model.n_way*(model.n_support + 1))
     
     scores = model.forward_gnn(z_stack)   
 
@@ -707,6 +700,14 @@ if __name__=='__main__':
                       state.pop(key)
                   if "classifier3." in key:
                       state.pop(key)
+                  if "gnn2." in key:
+                      state.pop(key)
+                  if "gnn3." in key:
+                      state.pop(key)
+                  if "fc2." in key:
+                      state.pop(key)
+                  if "fc3." in key:
+                      state.pop(key)
               model.load_state_dict(state)
               print(checkpoint_dir)
   elif params.method == "all":
@@ -825,7 +826,7 @@ if __name__=='__main__':
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "gnnnet":
-        scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+        scores = finetune_gnn(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "meta_ft":
         scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
