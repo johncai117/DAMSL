@@ -2,10 +2,10 @@ import numpy as np
 import os
 import glob
 import argparse
-import backbone
+import backbone_original as backbone
 
 model_dict = dict(
-            ResNet10 = backbone.ResNet10, ResNet10_FW = backbone.ResNet10_FW, ResNet18 = backbone.ResNet18)
+            ResNet10 = backbone.ResNet10, ResNet10_New = backbone.ResNet10_New, ResNet10_FW = backbone.ResNet10_FW, ResNet18 = backbone.ResNet18)
 
 def parse_args(script):
     parser = argparse.ArgumentParser(description= 'few-shot script %s' %(script))

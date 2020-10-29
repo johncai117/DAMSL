@@ -232,6 +232,7 @@ class SimpleBlock(nn.Module):
         self.parametrized_layers = [self.C1, self.C2, self.BN1, self.BN2]
 
         self.half_res = half_res
+        
 
         # if the input number of channels is not equal to the output, then need a 1x1 convolution
         if indim!=outdim:
@@ -260,10 +261,10 @@ class SimpleBlock(nn.Module):
         out = self.relu2(out)
         return out
 
-class SimpleBlock_narrow(nn.Module):
+class SimpleBlock_New(nn.Module):
     maml = False #Default
     def __init__(self, indim, outdim, half_res, last = False):
-        super(SimpleBlock_narrow, self).__init__()
+        super(SimpleBlock_New, self).__init__()
         self.indim = indim
         self.outdim = outdim
 
@@ -275,11 +276,12 @@ class SimpleBlock_narrow(nn.Module):
 
         self.relu1 = nn.ReLU(inplace=True)
         self.relu2 = nn.ReLU(inplace=True)
-        self.last = last
 
         self.parametrized_layers = [self.C1, self.C2, self.BN1, self.BN2]
 
         self.half_res = half_res
+        self.last = last
+        
 
         # if the input number of channels is not equal to the output, then need a 1x1 convolution
         if indim!=outdim:
@@ -487,11 +489,11 @@ class ResNet(nn.Module):
         out = self.trunk(x)
         return out
 
-class ResNet_narrow(nn.Module):
+class ResNet_New(nn.Module):
     def __init__(self,block,list_of_num_layers, list_of_out_dims, flatten = False):
         # list_of_num_layers specifies number of layers in each stage
         # list_of_out_dims specifies number of output channel for each stage
-        super(ResNet_narrow,self).__init__()
+        super(ResNet_New,self).__init__()
         assert len(list_of_num_layers)==4, 'Can have only four stages'
 
         conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -503,21 +505,18 @@ class ResNet_narrow(nn.Module):
         init_layer(bn1)
 
         trunk = [conv1, bn1, relu, pool1]
-
+        last = False
         indim = 64
         for i in range(4):
-            last = False
-
+            
             for j in range(list_of_num_layers[i]):
-                if i == 3:
-                    if j == list_of_num_layers[i] - 1:
-                        last = True
+                if i == 3 and j == list_of_num_layers[i] -1:
+                    last = True
                 half_res = (i>=1) and (j==0)
-                B = block(indim, list_of_out_dims[i], half_res, last = last)
+                B = block(indim, list_of_out_dims[i], half_res, last)
+                trunk.append(B)
                 indim = list_of_out_dims[i]
 
-                trunk.append(B)
-                
         if flatten:
             avgpool = nn.AvgPool2d(7)
             trunk.append(avgpool)
@@ -527,6 +526,7 @@ class ResNet_narrow(nn.Module):
             self.final_feat_dim = [ indim, 7, 7]
 
         self.trunk = nn.Sequential(*trunk)
+
 
     def forward(self,x):
         out = self.trunk(x)
@@ -611,11 +611,11 @@ def ResNet8(flatten = True):
     flatten = False
     return ResNet_3(SimpleBlock, [1,1,1],[64,128,256], False)
 
-#def ResNet10(flatten = True):
-    #return ResNet(SimpleBlock, [1,1,1,1],[64,128,256,512], flatten)
-
 def ResNet10(flatten = True):
-    return ResNet_narrow(SimpleBlock_narrow, [1,1,1,1],[64,128,256,512], flatten)
+    return ResNet(SimpleBlock, [1,1,1,1],[64,128,256,512], flatten)
+
+def ResNet10_New(flatten = True):
+    return ResNet_New(SimpleBlock_New, [1,1,2,1],[64,128,256,5], flatten)
 
 def ResNet10_FW(flatten = True):
     return ResNet(SimpleBlock2, [1,1,1,1],[64,128,256,512], flatten)
