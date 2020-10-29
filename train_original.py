@@ -25,9 +25,9 @@ from datasets import miniImageNet_few_shot, DTD_few_shot
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):    
     if optimization == 'SGD':
-        optimizer = torch.optim.SGD(model.parameters(), lr = 0.001, momentum = 0.9, weight_decay = 0.00005 )
+        optimizer = torch.optim.SGD(model.parameters(), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
     elif optimization == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr = 0.001, weight_decay = 0.0005 )
+        optimizer = torch.optim.Adam(model.parameters(), lr = 0.01, weight_decay = 0.0005 )
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 

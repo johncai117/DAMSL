@@ -26,7 +26,6 @@ class GnnNet(MetaTemplate):
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
-    self.feat_baseline = 
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))

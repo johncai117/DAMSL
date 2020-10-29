@@ -27,6 +27,8 @@ class GnnNet(MetaTemplate):
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
 
+    self.func_name = model_func.__name__
+    
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
     self.gnn = GNN_nl(64 + self.n_way, 32, self.n_way)
@@ -75,9 +77,12 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
+    if self.func_name == "ResNet10_Newv2":
+        names_change = names[-18:]
+    else:
+        names_change = names[-27:-18]
+        names_change = [n for n in names_change if "shortcut" not in n]
+        names_change += names[-18:]
 
     #print(hello)
 
@@ -136,9 +141,12 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
 
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
+    if self.func_name == "ResNet10_Newv2":
+        names_change = names[-18:]
+    else:
+        names_change = names[-27:-18]
+        names_change = [n for n in names_change if "shortcut" not in n]
+        names_change += names[-18:]
 
     for name, param in feat_network.named_parameters():
       if name not in names_change:
