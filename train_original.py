@@ -24,8 +24,10 @@ from datasets import miniImageNet_few_shot, DTD_few_shot
 
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):    
-    if optimization == 'Adam':
-        optimizer = torch.optim.Adam(model.parameters())
+    if optimization == 'SGD':
+        optimizer = torch.optim.SGD(model.parameters(), lr = 0.001, momentum = 0.9, weight_decay = 0.00005 )
+    elif optimization == "Adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr = 0.001, weight_decay = 0.0005 )
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 
@@ -70,7 +72,10 @@ if __name__=='__main__':
       np.random.seed(10) #original was 10
 
     image_size = 224
-    optimization = 'Adam'
+    if params.fine_tune:
+        optimization = 'SGD'
+    else:
+        optimization = 'Adam'
 
     if params.method in ['baseline'] :
 

@@ -234,10 +234,19 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
       if param.requires_grad:
         #print(name)
         names.append(name)
-    names_sub = names[:-18] ### last Resnet block can adapt
+
+    
+    if params.model == "ResNet10_New":
+        names_change = names[-27:-18]
+        names_change = [n for n in names_change if "shortcut" not in n]
+        names_change += names[-18:]
+    elif params.model == "ResNet10_Newv2":
+        names_change = names[-18:]
+    #print(names_change)
+    #print(hello)
 
     for name, param in pretrained_model.named_parameters():
-      if name in names_sub:
+      if name not in names_change:
         param.requires_grad = False
 
     if freeze_backbone is False:
@@ -313,8 +322,12 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     #print(score.shape)
 
     #score2 = output_query.view(n_way * n_query,-1)[:,:n_way]
+    #score2 = torch.nn.functional.softmax(score2, dim = 1)
 
-    return score
+    #score += score2
+
+
+    return score 
 
 
 def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5, linear = False): 

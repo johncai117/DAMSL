@@ -617,6 +617,9 @@ def ResNet10(flatten = True):
 def ResNet10_New(flatten = True):
     return ResNet_New(SimpleBlock_New, [1,1,2,1],[64,128,256,5], flatten)
 
+def ResNet10_Newv2(flatten = True):
+    return ResNet_New(SimpleBlock_New, [1,1,1,1],[64,128,256,5], flatten)
+
 def ResNet10_FW(flatten = True):
     return ResNet(SimpleBlock2, [1,1,1,1],[64,128,256,512], flatten)
 

@@ -8,6 +8,7 @@ import backbone
 import copy
 import math
 import random
+import torch.nn.functional as F
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -88,6 +89,27 @@ class GnnNet(MetaTemplate):
     scores = self.forward_gnn(z_stack)
     return scores
   
+  def set_forward_relu(self,x,is_feature=False):
+    x = x.cuda()
+
+    if is_feature:
+      # reshape the feature tensor: n_way * n_s + 15 * f
+      assert(x.size(1) == self.n_support + 15)
+      z = self.fc(F.relu(x.view(-1, *x.size()[2:])))
+      z = z.view(self.n_way, -1, z.size(1))
+    else:
+      # get feature using encoder
+      x = x.view(-1, *x.size()[2:])
+      z = self.fc(F.relu(self.feature(x)))
+      z = z.view(self.n_way, -1, z.size(1))
+
+    # stack the feature for metric function: n_way * n_s + n_q * f -> n_q * [1 * n_way(n_s + 1) * f]
+    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
+    
+    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
+    scores = self.forward_gnn(z_stack)
+    return scores
+
   def train_loop_finetune(self, epoch, train_loader, optimizer ):
         print_freq = 10
 
@@ -183,7 +205,7 @@ class GnnNet(MetaTemplate):
   def set_forward_finetune(self,x,is_feature=False, linear = False):
     x = x.to(device)
     # get feature using encoder
-    batch_size = 4
+    batch_size = 8
     support_size = self.n_way * self.n_support 
 
     for name, param  in self.feature.named_parameters():
@@ -196,10 +218,8 @@ class GnnNet(MetaTemplate):
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
-    classifier = Classifier(self.feat_dim, self.n_way)
     delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.005)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005) ##try it with weight_decay
     
     names = []
     for name, param in feat_network.named_parameters():
@@ -218,17 +238,14 @@ class GnnNet(MetaTemplate):
   
     total_epoch = 15
 
-    classifier.train()
     feat_network.train()
 
-    classifier.cuda()
     feat_network.cuda()
 
     for epoch in range(total_epoch):
           rand_id = np.random.permutation(support_size)
 
           for j in range(0, support_size, batch_size):
-              classifier_opt.zero_grad()
               
               delta_opt.zero_grad()
 
@@ -239,28 +256,27 @@ class GnnNet(MetaTemplate):
               y_batch = y_a_i[selected_id] 
               #####################################
 
-              output = feat_network(z_batch)
-              scores  = classifier(output)
-              loss = loss_fn(scores, y_batch)
+              output = feat_network(z_batch)[:,:5] ### first 5 channels
+             
+              loss = loss_fn(output, y_batch)
               #grad = torch.autograd.grad(set_loss, fast_parameters, create_graph=True)
 
               #####################################
               loss.backward() ### think about how to compute gradients and achieve a good initialization
 
-              classifier_opt.step()
               delta_opt.step()
     
     if self.first == True:
       self.first = False
     self.feature2 = copy.deepcopy(self.feature)
     self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
-    self.feature.load_state_dict(feat_network.state_dict())
+    self.feature.load_state_dict(feat_network.state_dict()) 
     
     for name, param  in self.feature.named_parameters():
         param.requires_grad = True    
 
-    output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1)
+    output_support = F.relu(self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1))
+    output_query = F.relu(self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1))
 
     final = torch.cat((output_support, output_query), dim =1).cuda()
 
@@ -274,7 +290,9 @@ class GnnNet(MetaTemplate):
     assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
     
     scores = self.forward_gnn(z_stack)
-    
+
+    scores2 = output_query.view(self.n_way * self.n_query,-1 )[:,:5] ## last 5
+    scores += scores2
     return scores
 
   def set_forward_finetune_ep(self,liz_x,is_feature=False, n_query = 16):
@@ -317,6 +335,7 @@ class GnnNet(MetaTemplate):
     y_a_i = y_a_aug    
 
     feat_network = copy.deepcopy(self.feature)
+    fc_network = copy.deepcopy(self.fc)
     classifier = Classifier(self.feat_dim, self.n_way)
     
     

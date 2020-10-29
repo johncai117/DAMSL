@@ -92,7 +92,7 @@ class SetDataset2:
         #for key, item in self.sub_meta.items():
             #print (len(self.sub_meta[key]))
 
-        seed = 10
+        seed = np.random.randint(10000)
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.

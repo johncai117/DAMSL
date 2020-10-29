@@ -19,6 +19,7 @@ from methods.protonet import ProtoNet
 from methods.dampnet import DampNet
 from methods import dampnet_full
 from methods.meta_ft import Meta_FT
+from methods.meta_ft_new import Meta_FT_New
 from methods.meta_ft_proto import Meta_FT_Proto
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
@@ -35,14 +36,14 @@ class DataParallelPassthrough(torch.nn.DataParallel):
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     if optimization == 'SGD':
-        optimizer = torch.optim.SGD(model.parameters(), lr = 0.001, momentum = 0.9, weight_decay = 0.0005 )
+        optimizer = torch.optim.SGD(model.parameters(), lr = 0.001, momentum = 0.9, weight_decay = 0.00005 )
     elif optimization == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr = 0.001, weight_decay = 0.0005 )
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 
 
-    if not params.fine_tune:
+    if start_epoch < 401 and not params.fine_tune:
       for epoch in range(start_epoch,stop_epoch):
           #print(epoch)
           model.train()
@@ -57,6 +58,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
 
           if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
+              
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
     else:
       params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
@@ -76,6 +78,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
           if not os.path.isdir(params.checkpoint_dir):
               os.makedirs(params.checkpoint_dir)
           if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):
+              
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
          
@@ -160,6 +163,8 @@ if __name__=='__main__':
             model           = MetaOptNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'meta_ft':
             model = Meta_FT(model_dict[params.model], **train_few_shot_params)
+        elif params.method == 'meta_ft_new':
+            model = Meta_FT_New(model_dict[params.model], **train_few_shot_params)
         elif params.method == 'meta_ft_proto':
             model = Meta_FT_Proto(model_dict[params.model], **train_few_shot_params)
         elif params.method == 'gnnnet':
@@ -182,7 +187,7 @@ if __name__=='__main__':
             model = dampnet_full_sparse.DampNet(model_dict[params.model], **train_few_shot_params)
         elif params.method == 'dampnet_full_class':
             model = dampnet_full_class.DampNet(model_dict[params.model], **train_few_shot_params)
-       
+        model.n_query = n_query
     else:
        raise ValueError('Unknown method')
 
@@ -210,7 +215,7 @@ if __name__=='__main__':
     stop_epoch = params.stop_epoch
 
     print(params.checkpoint_dir)
-    model.n_query = n_query
+    
 
     print(params.parallel)
     if torch.cuda.device_count() > 1 and params.parallel:
@@ -264,21 +269,22 @@ if __name__=='__main__':
                     if params.start_epoch == 401 and "classifier." in key:
                         state.pop(key)
                 
-        if params.method not in ["meta_ft"]:
-            model.load_state_dict(state)
-        else:
-            state_temp = copy.deepcopy(state)
-            state_keys = list(state_temp.keys())
-            if params.start_epoch == 401:
-                for _, key in enumerate(state_keys):
-                    if "feature." in key:
-                        newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-                        state_temp[newkey] = state_temp.pop(key)
-            
-                model.feature.load_state_dict(state_temp)
+            if params.method not in ["meta_ft"]:
+                model.load_state_dict(state)
             else:
-                model.load_state_dict(state_temp)
+                state_temp = copy.deepcopy(state)
+                state_keys = list(state_temp.keys())
+                if params.start_epoch == 401:
+                    for _, key in enumerate(state_keys):
+                        if "feature." in key:
+                            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+                            state_temp[newkey] = state_temp.pop(key)
+                
+                    model.feature.load_state_dict(state_temp)
+                else:
+                    model.load_state_dict(state_temp)
     else:
+        params.checkpoint_dir += "_" + str(params.optimizer_inner) + "_optim"
         resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
         if resume_file is not None:
             tmp = torch.load(resume_file)

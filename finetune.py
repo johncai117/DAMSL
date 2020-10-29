@@ -126,7 +126,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().to(device)
-    classifier_opt = torch.optim.SGD(classifier.parameters(), lr = 0.005, momentum = 0.9, weight_decay=0.00001)
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.0001)
     
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -222,10 +222,10 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     model = model.to(device)
     
     ###############################################################################################
-    if linear and classifier_found:
-      classifier = model.classifier
-    else:
-      classifier = Classifier(pretrained_model.final_feat_dim, n_way)
+    #if linear and classifier_found:
+      #classifier = model.classifier
+    #else:
+      #classifier = Classifier(128, n_way)
 
     ###############################################################################################
     if torch.cuda.device_count() > 1 and params.parallel:
@@ -234,8 +234,11 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         pretrained_model = DataParallelPassthrough(pretrained_model, device_ids = list(range(torch.cuda.device_count())))
         classifier = DataParallelPassthrough(classifier, device_ids = list(range(torch.cuda.device_count())))
 
+    fc_network = copy.deepcopy(model.fc)
+    fc_network.to(device)
+    fc_network.train()
     pretrained_model.to(device)
-    classifier.to(device)
+    #classifier.to(device)
 
     x = liz_x[0] ### non-changed one
     
@@ -244,7 +247,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     x_var = Variable(x)
 
 
-    batch_size = 16
+    batch_size = 8
     support_size = n_way * n_support 
     
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
@@ -284,13 +287,14 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         param.requires_grad = False
 
     #if params.optimizer_inner in ["Adam", "change_Adam"]:
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005, weight_decay = 0.0001)
+    #classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.005, weight_decay = 0.0001)
+    fc_opt = torch.optim.Adam(fc_network.parameters(), lr =0.005, weight_decay = 0.0001)
 
     if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.005)
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.005, weight_decay = 0.0001)
 
     pretrained_model.to(device)
-    classifier.to(device)
+    #classifier.to(device)
     ###############################################################################################
     total_epoch = params.fine_tune_epoch
 
@@ -300,14 +304,17 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         pretrained_model.eval()
     #pretrained_model_fixed = copy.deepcopy(pretrained_model)
     #pretrained_model_fixed.eval()
-    classifier.train()
+    #classifier.train()
+    pretrained_model.train()
+    #fc_network.train()
     lengt = len(liz_x) +1
     
     iter_list = list(range(0, support_size * lengt, batch_size))
     for epoch in range(total_epoch):
         rand_id = np.random.permutation(support_size * lengt)
         for j in iter_list:
-            classifier_opt.zero_grad()
+            #classifier_opt.zero_grad()
+            fc_opt.zero_grad()
             if freeze_backbone is False:
                 delta_opt.zero_grad()
 
@@ -318,24 +325,30 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
             y_batch = y_a_i[selected_id] 
             #####################################
 
-            output = pretrained_model(z_batch)
+            output = pretrained_model(z_batch)[:,:5]
             if flatten == False:
               avgpool = nn.AvgPool2d(7)
               flat = backbone.Flatten()
               output = flat(avgpool(output))
-            scores  = classifier(output)
-            loss = loss_fn(scores, y_batch)
+            #scores  = classifier(fc_network(output))
+            
+            loss = loss_fn(output, y_batch)
 
             #####################################
             loss.backward()
 
-            classifier_opt.step()
+            #classifier_opt.step()
+            #fc_opt.step()
             
             if freeze_backbone is False:
                 delta_opt.step()
 
     #pretrained_model.eval() ## for transduction
-    classifier.eval()
+    ##classifier.eval()
+    model.eval()
+    pretrained_model.eval()
+    model.fc.load_state_dict(fc_network.state_dict())
+
     #output_query_original = pretrained_model(x_b_i.to(device))   
     if not linear:
       #model.eval() ## evaluation mode ## comment for transduction learning
@@ -348,19 +361,26 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         #output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
       model.n_query = n_query
       if ds == True:
-        score = model.set_forward(output_all, is_feature = True, domain_shift = True).detach()
+        score = model.set_forward_relu(output_all, is_feature = True, domain_shift = True).detach()
       else:
-        score = model.set_forward(output_all, is_feature = True).detach()
+        score = model.set_forward_relu(output_all, is_feature = True).detach()
+        #print(score.shape)
       #score = torch.nn.functional.softmax(score, dim = 1).detach()
     elif linear:
       output_query_original = pretrained_model(x_b_i.to(device))    
       if flatten == False:
         output_query_original = flat(avgpool(output_query_original))
       score = classifier(output_query_original).detach()
-      
-    score = torch.nn.functional.softmax(score.detach(), dim = 1)
+    
+    
+    
+    score2 = output_query.detach().view(n_way * n_query, -1)[:,:5]
     #score += torch.nn.functional.softmax(classifier(output_query_original).detach(), dim = 1)
 
+    #print(score.shape)
+    #print(bye)
+    score += score2
+    score = torch.nn.functional.softmax(score.detach(), dim = 1)
     return score
 
 
@@ -721,10 +741,11 @@ if __name__=='__main__':
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
               if params.change_FT_dir > 0:
                 checkpoint_dir2 += "_" + str(params.num_FT_block) + "FT"
-                checkpoint_dir2 += "_" + str(params.change_FT_dir) + "FT_epoch"
-              if params.optimizer_inner == "Adam":
+                #checkpoint_dir2 += "_" + str(params.change_FT_dir) + "FT_epoch"
+              if params.optimizer_inner == "change_Adam":
                 checkpoint_dir2 += "_" + str(params.optimizer_inner) + "_optim"
               
+              print(checkpoint_dir2)
               modelfile2   = get_assigned_file(checkpoint_dir2,params.save_iter)
               
               modelfile2_o   = get_assigned_file(checkpoint_dir2,params.save_iter)
@@ -826,7 +847,7 @@ if __name__=='__main__':
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "gnnnet":
-        scores = finetune_gnn(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
+        scores = finetune(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "meta_ft":
         scores = finetune(liz_x,y, model, state, linear = True, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)

@@ -26,10 +26,12 @@ class GnnNet(MetaTemplate):
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
+    self.feat_baseline = 
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
-    self.gnn = GNN_nl(64 + self.n_way, 32, self.n_way)
+    self.fc2 = nn.Sequential(nn.Linear(512, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
+    self.gnn = GNN_nl(64 + 64 + self.n_way, 32, self.n_way)
     self.method = 'GnnNet'
 
     # fix label for training the metric function   1*nw(1 + ns)*nw
@@ -41,6 +43,7 @@ class GnnNet(MetaTemplate):
   def cuda(self):
     self.feature.cuda()
     self.fc.cuda()
+    self.fc2.cuda()
     self.gnn.cuda()
     self.support_label = self.support_label.cuda()
     return self
@@ -75,9 +78,9 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
+    names_change = names[-18:]
+    #names_change = [n for n in names_change if "shortcut" not in n]
+    #names_change += names[-9:]
 
     #print(hello)
 
@@ -136,9 +139,9 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
 
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
+    names_change = names[-18:]
+    #names_change = [n for n in names_change if "shortcut" not in n]
+    #names_change += names[-9:]
 
     for name, param in feat_network.named_parameters():
       if name not in names_change:

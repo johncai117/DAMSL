@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 from methods.meta_template import MetaTemplate
 from methods.gnn import GNN_nl
 from torch.autograd import Variable
 import backbone
 import copy
+from backbone_original import SimpleBlock_New
 
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
@@ -29,7 +29,9 @@ class GnnNet(MetaTemplate):
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
-    self.gnn = GNN_nl(64 + self.n_way, 32, self.n_way)
+    self.fc_new = nn.Sequential(nn.Linear(n_way, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(n_way, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
+    self.additional_block = SimpleBlock_New(self.feat_dim, 5, half_res = True, last = True)
+    self.gnn = GNN_nl(64 + self.n_way, 48, self.n_way)
     self.method = 'GnnNet'
 
     # fix label for training the metric function   1*nw(1 + ns)*nw
@@ -43,6 +45,9 @@ class GnnNet(MetaTemplate):
     self.fc.cuda()
     self.gnn.cuda()
     self.support_label = self.support_label.cuda()
+    self.additional_block.cuda()
+    self.fc_new.cuda()
+
     return self
 
   def set_forward(self,x,is_feature=False):
@@ -51,12 +56,12 @@ class GnnNet(MetaTemplate):
     if is_feature:
       # reshape the feature tensor: n_way * n_s + 15 * f
       assert(x.size(1) == self.n_support + 15)
-      z = self.fc(F.relu(x.view(-1, *x.size()[2:])))
+      z = self.fc(x.view(-1, *x.size()[2:]))
       z = z.view(self.n_way, -1, z.size(1))
     else:
       # get feature using encoder
       x = x.view(-1, *x.size()[2:])
-      z = self.fc(F.relu(self.feature(x)))
+      z = self.fc(self.feature(x))
       z = z.view(self.n_way, -1, z.size(1))
 
     # stack the feature for metric function: n_way * n_s + n_q * f -> n_q * [1 * n_way(n_s + 1) * f]
@@ -66,31 +71,8 @@ class GnnNet(MetaTemplate):
     scores = self.forward_gnn(z_stack)
     return scores
 
-  
-
-  def MAML_update(self):
-    names = []
-    for name, param in self.feature.named_parameters():
-      if param.requires_grad:
-        #print(name)
-        names.append(name)
-    
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
-
-    #print(hello)
-
-    if not self.first:
-      for (name, param), (name1, param1), (name2, param2) in zip(self.feature.named_parameters(), self.feature2.named_parameters(), self.feature3.named_parameters()):
-        if name in names_change:
-          dat_change = param2.data - param1.data ### Y - X
-          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
-          param.data.copy_(new_dat)
-
   def train_loop_finetune(self, epoch, train_loader, optimizer ):
         print_freq = 10
-
         avg_loss=0
         for i, (x,_ ) in enumerate(train_loader):
             self.n_query = x.size(1) - self.n_support           
@@ -106,6 +88,22 @@ class GnnNet(MetaTemplate):
             if i % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
+
+  def MAML_update(self):
+    names = []
+    for name, param in self.feature.named_parameters():
+      if param.requires_grad:
+        #print(name)
+        names.append(name)
+    
+    names_sub = names[:-9]
+    if not self.first:
+      for (name, param), (name1, param1), (name2, param2) in zip(self.additional_block.named_parameters(), self.additional_block2.named_parameters(), self.additional_block3.named_parameters()):
+        if name not in names_sub:
+          dat_change = param2.data - param1.data ### Y - X
+          new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
+          param.data.copy_(new_dat)
+
   
   def set_forward_finetune(self,x,is_feature=False):
     x = x.cuda()
@@ -115,6 +113,9 @@ class GnnNet(MetaTemplate):
     batch_size = 4
     support_size = self.n_way * self.n_support 
 
+    for name, param  in self.additional_block.named_parameters():
+      param.requires_grad = True
+    
     for name, param  in self.feature.named_parameters():
       param.requires_grad = True
 
@@ -123,11 +124,13 @@ class GnnNet(MetaTemplate):
     y_a_i = Variable( torch.from_numpy( np.repeat(range( self.n_way ), self.n_support ) )).cuda() # (25,)
 
     #print(y_a_i)
+    self.MAML_update() ## call MAML update
     
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
+    block_network = copy.deepcopy(self.additional_block)
     feat_network = copy.deepcopy(self.feature)
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    block_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, block_network.parameters()), lr = 0.01)
     loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     
     names = []
@@ -136,18 +139,15 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
 
-    names_change = names[-27:-18]
-    names_change = [n for n in names_change if "shortcut" not in n]
-    names_change += names[-18:]
-
     for name, param in feat_network.named_parameters():
-      if name not in names_change:
-        param.requires_grad = False
+        param.requires_grad = False    
   
+      
     total_epoch = 15
-
+    block_network.train()
     feat_network.train()
 
+    block_network.cuda()
     feat_network.cuda()
 
     for epoch in range(total_epoch):
@@ -155,7 +155,7 @@ class GnnNet(MetaTemplate):
 
           for j in range(0, support_size, batch_size):
               
-              delta_opt.zero_grad()
+              block_opt.zero_grad()
 
               #####################################
               selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size)]).cuda()
@@ -165,14 +165,14 @@ class GnnNet(MetaTemplate):
               #####################################
 
               output = feat_network(z_batch)
-             
-              loss = loss_fn(output, y_batch)
+              scores  = block_network(output)
+              loss = loss_fn(scores, y_batch)
               #grad = torch.autograd.grad(set_loss, fast_parameters, create_graph=True)
 
               #####################################
               loss.backward() ### think about how to compute gradients and achieve a good initialization
 
-              delta_opt.step()
+              block_opt.step()
     
 
     #feat_network.eval() ## fix this
@@ -180,21 +180,21 @@ class GnnNet(MetaTemplate):
     #self.train() ## continue training this!
     if self.first == True:
       self.first = False
-    self.feature2 = copy.deepcopy(self.feature)
-    self.feature3 = copy.deepcopy(feat_network) ## before the new state_dict is copied over
-    self.feature.load_state_dict(feat_network.state_dict())
+    self.additional_block2 = copy.deepcopy(self.additional_block)
+    self.additional_block3 = copy.deepcopy(block_network) ## before the new state_dict is copied over
+    self.additional_block.load_state_dict(block_network.state_dict())
     
     for name, param  in self.feature.named_parameters():
         param.requires_grad = True
     
-    output_support = self.feature(x_a_i.cuda()).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.cuda()).view(self.n_way,self.n_query,-1)
+    output_support = self.additional_block(self.feature(x_a_i.cuda())).view(self.n_way, self.n_support, -1)
+    output_query = self.additional_block(self.feature(x_b_i.cuda())).view(self.n_way,self.n_query,-1)
 
     final = torch.cat((output_support, output_query), dim =1).cuda()
     #print(x.size(1))
     #print(x.shape)
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
-    z = self.fc(F.relu(final.view(-1, *final.size()[2:])))
+    z = self.fc_new(final.view(-1, *final.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
 
     z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
