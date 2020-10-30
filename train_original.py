@@ -28,7 +28,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     if optimization == 'SGD':
         optimizer = torch.optim.SGD(model.parameters(), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
     elif optimization == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr = 0.005, weight_decay = 0.00001 )
+        optimizer = torch.optim.Adam(model.parameters())
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 
