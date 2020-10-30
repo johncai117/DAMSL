@@ -9,6 +9,7 @@ import os
 import glob
 from methods.gnnnet_original import GnnNet
 from methods import gnnnet
+from methods.gnnnet_analogy import GnnNet_Analogy
 from methods import gnn
 
 import configs
@@ -27,7 +28,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     if optimization == 'SGD':
         optimizer = torch.optim.SGD(model.parameters(), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
     elif optimization == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr = 0.01, weight_decay = 0.0005 )
+        optimizer = torch.optim.Adam(model.parameters(), lr = 0.005, weight_decay = 0.00001 )
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 
@@ -72,10 +73,7 @@ if __name__=='__main__':
       np.random.seed(10) #original was 10
 
     image_size = 224
-    if params.fine_tune:
-        optimization = 'SGD'
-    else:
-        optimization = 'Adam'
+    optimization = 'Adam'
 
     if params.method in ['baseline'] :
 
@@ -84,6 +82,7 @@ if __name__=='__main__':
             datamgr = miniImageNet_few_shot.SimpleDataManager(image_size, batch_size = 16)
             #print("bye")
             base_loader = datamgr.get_data_loader(aug = params.train_aug )
+            params.num_classes = 64
             #print("loaded")
         elif params.dataset == "CUB":
 
@@ -113,7 +112,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['dampnet_full_class','dampnet_full_sparse','protonet_damp','maml','relationnet','dampnet_full','dampnet','protonet', 'gnnnet', 'gnnnet_maml', 'metaoptnet', 'gnnnet_normalized', 'gnnnet_neg_margin']:
+    elif params.method in ['gnnnet_analogy','dampnet_full_class','dampnet_full_sparse','protonet_damp','maml','relationnet','dampnet_full','dampnet','protonet', 'gnnnet', 'gnnnet_maml', 'metaoptnet', 'gnnnet_normalized', 'gnnnet_neg_margin']:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -147,6 +146,9 @@ if __name__=='__main__':
             model           = MetaOptNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
+        elif params.method == 'gnnnet_analogy':
+            model           = GnnNet_Analogy( model_dict[params.model], **train_few_shot_params, params = params)
+        
         elif params.method == 'gnnnet_maml':
             gnnnet.GnnNet.maml  = True
             gnn.Gconv.maml  = True
@@ -175,7 +177,6 @@ if __name__=='__main__':
     save_dir =  configs.save_dir
     print("WORKING")
 
-    
 
     params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, params.dataset, params.model, params.method)
     if params.train_aug:
