@@ -5,8 +5,12 @@ import numpy as np
 from methods.meta_template import MetaTemplate
 from methods.gnn import GNN_nl
 from torch.autograd import Variable
-import backbone
+import backbone_original as backbone
 import copy
+import configs
+
+from methods.baselinetrain import BaselineTrain
+from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
@@ -18,10 +22,10 @@ class Classifier(nn.Module):
         x = self.fc(x)
         return x
 
-class GnnNet(MetaTemplate):
+class GnnNet_Analogy(MetaTemplate):
   maml=False
-  def __init__(self, model_func,  n_way, n_support):
-    super(GnnNet, self).__init__(model_func, n_way, n_support)
+  def __init__(self, model_func,  n_way, n_support, params):
+    super(GnnNet_Analogy, self).__init__(model_func, n_way, n_support)
 
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
@@ -29,7 +33,31 @@ class GnnNet(MetaTemplate):
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
-    self.fc2 = nn.Sequential(nn.Linear(512, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(self.feat_dim, 64), backbone.BatchNorm1d_fw(64, track_running_stats=False))
+    self.fc2 = nn.Sequential(nn.Linear(512, 64), nn.BatchNorm1d(64, track_running_stats=False)) if not self.maml else nn.Sequential(backbone.Linear_fw(512, 64), backbone.BatchNorm1d_fw(512, track_running_stats=False))
+    
+    ### load baseline features
+    baseline_model  = BaselineTrain( backbone.ResNet10, 64)
+    save_dir =  configs.save_dir
+    self.params = params
+    params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, params.dataset, "ResNet10", "baseline")
+    if params.train_aug:
+        params.checkpoint_dir += '_aug'
+    
+    resume_file = get_assigned_file(params.checkpoint_dir, 400)
+    if resume_file is not None:
+      tmp = torch.load(resume_file)
+      
+      state = tmp['state']
+      state_keys = list(state.keys())
+      for _, key in enumerate(state_keys):
+          if "feature2." in key:
+              state.pop(key)
+          if "feature3." in key:
+              state.pop(key)
+            
+    baseline_model.load_state_dict(state)  
+    self.feature_baseline = copy.deepcopy(baseline_model.feature)
+    del baseline_model
     self.gnn = GNN_nl(64 + 64 + self.n_way, 32, self.n_way)
     self.method = 'GnnNet'
 
@@ -42,6 +70,8 @@ class GnnNet(MetaTemplate):
   def cuda(self):
     self.feature.cuda()
     self.fc.cuda()
+    self.fc2.cuda()
+    self.feature_baseline.cuda()
     self.fc2.cuda()
     self.gnn.cuda()
     self.support_label = self.support_label.cuda()
@@ -60,6 +90,7 @@ class GnnNet(MetaTemplate):
       x = x.view(-1, *x.size()[2:])
       z = self.fc(F.relu(self.feature(x)))
       z = z.view(self.n_way, -1, z.size(1))
+      
 
     # stack the feature for metric function: n_way * n_s + n_q * f -> n_q * [1 * n_way(n_s + 1) * f]
     z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
@@ -90,22 +121,53 @@ class GnnNet(MetaTemplate):
           new_dat = param.data - dat_change ### (Y- V) - (Y-X) = X-V
           param.data.copy_(new_dat)
 
+  def load_gnn_feat(self):
+    save_dir =  configs.save_dir
+    params = self.params
+    params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, params.dataset, params.model, "gnnnet")
+    if params.train_aug:
+        params.checkpoint_dir += '_aug'
+    if not params.method  in ['baseline', 'baseline++']: 
+        params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
+
+    resume_file = get_assigned_file(params.checkpoint_dir, 400)
+    if resume_file is not None:
+        tmp = torch.load(resume_file)
+        state = tmp['state']
+        state_keys = list(state.keys())
+        state_temp = copy.deepcopy(state)
+        for _, key in enumerate(state_keys):
+            if "feature2." in key:
+                state_temp.pop(key)
+            if "feature3." in key:
+                state_temp.pop(key)
+            if "feature" not in key:
+                state_temp.pop(key)
+            else:
+                newkey = key.replace("feature.", "")
+                state_temp[newkey] = state_temp.pop(key)
+
+    self.feature.load_state_dict(state_temp) ## load state dict
+
+
   def train_loop_finetune(self, epoch, train_loader, optimizer ):
         print_freq = 10
+        self.load_gnn_feat()
 
         avg_loss=0
-        for i, (x,_ ) in enumerate(train_loader):
+        for i, (x,y ) in enumerate(train_loader):
             self.n_query = x.size(1) - self.n_support           
             if self.change_way:
                 self.n_way  = x.size(0)
             optimizer.zero_grad()
+            
             loss = self.set_forward_loss_finetune( x )
             loss.backward()
             optimizer.step()
             self.MAML_update()
             avg_loss = avg_loss+loss.item()
 
-            if i % print_freq==0:
+            if (i+1) % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
   
@@ -199,7 +261,19 @@ class GnnNet(MetaTemplate):
     z = self.fc(F.relu(final.view(-1, *final.size()[2:])))
     z = z.view(self.n_way, -1, z.size(1))
 
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
+
+    output_support_b = self.feature_baseline(x_a_i.cuda()).view(self.n_way, self.n_support, -1).detach()
+    output_query_b = self.feature_baseline(x_b_i.cuda()).view(self.n_way,self.n_query,-1).detach()
+    final_b = torch.cat((output_support_b, output_query_b), dim =1).cuda()
+    
+    #print(final.shape)
+    #print(final_b.shape)
+    z_b = self.fc2(F.relu(final_b.view(-1, *final_b.size()[2:])))
+    z_b = z_b.view(self.n_way, -1, z_b.size(1))
+
+    z_new = torch.cat([z, z_b], dim = 2)
+    
+    z_stack = [torch.cat([z_new[:, :self.n_support], z_new[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z_new.size(2)) for i in range(self.n_query)]
     
     assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
     
