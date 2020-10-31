@@ -7,7 +7,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from methods.gnnnet_original import GnnNet
+from methods.gnnnet2 import GnnNet
 from methods import gnnnet
 from methods.gnnnet_analogy import GnnNet_Analogy
 from methods import gnn
