@@ -29,7 +29,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
     for _, param in model.named_parameters():
             param.requires_grad = True
     
-    if params.method == "gnnnet3":
+    if params.method == "gnnnet3" and params.start_epoch >= 401:
         for _, param in model.feature_baseline.named_parameters():
             param.requires_grad = False  
 
