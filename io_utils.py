@@ -5,7 +5,7 @@ import argparse
 import backbone_original as backbone
 
 model_dict = dict(
-            ResNet10 = backbone.ResNet10, ResNet10_Newv2 = backbone.ResNet10_Newv2 ,ResNet10_New = backbone.ResNet10_New, ResNet10_FW = backbone.ResNet10_FW, ResNet18 = backbone.ResNet18)
+            ResNet10_Newv3 = backbone.ResNet10_Newv3,ResNet10 = backbone.ResNet10, ResNet10_Newv2 = backbone.ResNet10_Newv2 ,ResNet10_New = backbone.ResNet10_New, ResNet10_FW = backbone.ResNet10_FW, ResNet18 = backbone.ResNet18)
 
 def parse_args(script):
     parser = argparse.ArgumentParser(description= 'few-shot script %s' %(script))
@@ -27,6 +27,7 @@ def parse_args(script):
     parser.add_argument('--gen_examples', default=17, type=int,help ='number of examples to generate (data augmentation)')
     parser.add_argument('--ablation'       , default='no_ablation',      help='set the ablation study we want to perform') 
     parser.add_argument('--num_FT_block' , default=2, type=int,  help='number of blocks to finetune')
+    parser.add_argument('--load_features'   , action='store_true',  help='whether we want to load features') 
     parser.add_argument('--parallel'   , action='store_true',  help='whether we want to use data parallelerism') 
     parser.add_argument('--change_FT_dir'   , default=-1, type=int,  help='change finetune directory to load from') 
     parser.add_argument('--optimizer_inner'   , default="Adam",  help='change optimizer for inner loop') 

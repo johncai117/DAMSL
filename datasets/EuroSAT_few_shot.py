@@ -94,7 +94,7 @@ class SetDataset2:
         #for key, item in self.sub_meta.items():
             #print (len(self.sub_meta[key]))
 
-        seed = 10
+        seed = 7
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
@@ -243,7 +243,7 @@ class TransformLoader:
 class TransformLoader2:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.3, Contrast=0.3, Color=0.05)):
+                 jitter_param       = dict(Brightness=0.1, Contrast=0.1, Color=0.05)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
@@ -254,7 +254,7 @@ class TransformLoader2:
             return method
         method = getattr(transforms, transform_type)
         if transform_type=='RandomSizedCrop':
-            return method(self.image_size, scale=(0.6, 0.9))
+            return method(self.image_size, scale=(0.5, 0.9))
         elif transform_type=='CenterCrop':
             return method(self.image_size) 
         elif transform_type=='Scale':

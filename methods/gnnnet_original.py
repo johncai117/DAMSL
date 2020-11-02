@@ -77,13 +77,13 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
     
-    if self.func_name == "ResNet10_Newv2":
-        names_change = names[-18:]
-    else:
-        names_change = names[-27:-18]
-        names_change = [n for n in names_change if "shortcut" not in n]
-        names_change += names[-18:]
-
+    #if self.func_name == "ResNet10_Newv2":
+        #names_change = names[-18:]
+    #else:
+        #names_change = names[-27:-18]
+        #names_change = [n for n in names_change if "shortcut" not in n]
+        #names_change += names[-18:]
+    names_change = names[-9:]
     #print(hello)
 
     if not self.first:
@@ -132,8 +132,6 @@ class GnnNet(MetaTemplate):
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:]) # (25, 3, 224, 224)
     feat_network = copy.deepcopy(self.feature)
-    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
-    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
     
     names = []
     for name, param in feat_network.named_parameters():
@@ -141,16 +139,21 @@ class GnnNet(MetaTemplate):
         #print(name)
         names.append(name)
 
-    if self.func_name == "ResNet10_Newv2":
-        names_change = names[-18:]
-    else:
-        names_change = names[-27:-18]
-        names_change = [n for n in names_change if "shortcut" not in n]
-        names_change += names[-18:]
+    #if self.func_name == "ResNet10_Newv2":
+        #names_change = names[-18:]
+    #else:
+        #names_change = names[-27:-18]
+        #names_change = [n for n in names_change if "shortcut" not in n]
+        #names_change += names[-18:]
+    
+    names_change = names[-9:]
 
     for name, param in feat_network.named_parameters():
       if name not in names_change:
         param.requires_grad = False
+    
+    delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, feat_network.parameters()), lr = 0.01)
+    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
   
     total_epoch = 15
 

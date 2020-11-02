@@ -105,11 +105,11 @@ class GnnNet(MetaTemplate):
     baseline_model.load_state_dict(state)  
     self.feature_baseline = copy.deepcopy(baseline_model.feature)
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
-    self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    #self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    #self.batchnorm_new = nn.BatchNorm1d(10, track_running_stats=False)
     del baseline_model
     self.batchnorm2.cuda()
     self.feature_baseline.cuda()
-    self.fc_new.cuda()
 
   def set_forward(self,x,is_feature=False):
     x = x.cuda()
@@ -298,10 +298,6 @@ class GnnNet(MetaTemplate):
 
     ### freeze layers of baseline feat
     names_b = []
-
-    for _, param in baseline_feat.named_parameters():
-            param.requires_grad = True
-
     for name, param in baseline_feat.named_parameters():
       if param.requires_grad:
         #print(name)
@@ -408,33 +404,27 @@ class GnnNet(MetaTemplate):
 
     final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).cuda()).detach()
     
-    #print(final.shape)
-    #print(final_b.shape)
+    print(final.shape)
+    print(final_b.shape)
     
     final_b = torch.transpose(self.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
     
-    final = torch.cat([final, final_b], dim = 2)
 
     ### feed into fc and gnn
 
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
-
-    z = self.fc_new(final.view(-1, *final.size()[2:]))
+    z = self.fc2(final.view(-1, *final.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
 
 
-    #z = self.fc2(final.view(-1, *final.size()[2:]))
-    #z = z.view(self.n_way, -1, z.size(1))
-
-
-    #z_b = self.fc3(final_b.view(-1, *final_b.size()[2:]))
-    #z_b = z_b.view(self.n_way, -1, z_b.size(1))
+    z_b = self.fc3(final_b.view(-1, *final_b.size()[2:]))
+    z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
     #rand_int = np.random.randint(2, size = 10)
     #print(rand_int)
     #print(hello)
 
-    #z = torch.cat([z, z_b], dim = 2) ##concatenate
+    z = torch.cat([z, z_b], dim = 2) ##concatenate
 
 
     z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
@@ -757,3 +747,202 @@ class GnnNet(MetaTemplate):
     scores = self.set_forward_finetune_ep_gnn(liz_x)
     loss = self.loss_fn(scores, y_query)
     return loss
+
+def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
+    ###############################################################################################
+    # load pretrained model on miniImageNet
+    pretrained_model = model_dict[params.model](flatten = flatten)
+    
+    state_temp = copy.deepcopy(state_in)
+
+    state_keys = list(state_temp.keys())
+    for _, key in enumerate(state_keys):
+        if "feature." in key:
+            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
+            state_temp[newkey] = state_temp.pop(key)
+        else:
+            state_temp.pop(key)
+
+
+    pretrained_model.load_state_dict(state_temp)
+
+    model = model.to(device)
+    model.train()
+    
+    ###############################################################################################
+
+    classifier = copy.deepcopy(model.classifier)
+
+    ###############################################################################################
+    
+    x = liz_x[0] ### non-changed one
+    #print(x.shape)
+    #print(n_query)
+    model.n_query = n_query
+    x = x.to(device)
+    x_var = Variable(x)
+    
+    support_size = n_way * n_support 
+    batch_size = 8
+
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
+
+    x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
+    x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
+    x_a_i_original = x_a_i
+    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
+    
+    ### to load all the changed examples
+
+    x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
+    y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
+    for x_aug in liz_x[1:]:
+      x_aug = x_aug.to(device)
+      x_aug = Variable(x_aug)
+      x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
+      y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device)
+      x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
+      y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
+    
+    ###############################################################################################
+    
+    #optimizer = torch.optim.Adam(model.parameters())
+    names = []
+    for name, param in pretrained_model.named_parameters():
+      if param.requires_grad:
+        #print(name)
+        names.append(name)
+    
+    names_sub = names[:-9] ### last Resnet block can adapt
+
+    for name, param in pretrained_model.named_parameters():
+      if name in names_sub:
+        param.requires_grad = False
+
+    if freeze_backbone is False:
+        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
+
+    loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    pretrained_model.to(device)
+    classifier.to(device)
+    ###############################################################################################
+    total_epoch = params.fine_tune_epoch
+
+    if freeze_backbone is False:
+        pretrained_model.train()
+    
+    #pretrained_model_fixed = copy.deepcopy(pretrained_model)
+    #pretrained_model_fixed.eval()
+    classifier.train()
+    lengt = len(liz_x) +1
+    for epoch in range(total_epoch):
+        rand_id = np.random.permutation(support_size * lengt)
+
+        for j in range(0, support_size * lengt, batch_size):
+            classifier_opt.zero_grad()
+            if freeze_backbone is False:
+                delta_opt.zero_grad()
+
+            #####################################
+            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
+            
+            z_batch = x_a_i[selected_id].to(device)
+            y_batch = y_a_i[selected_id] 
+            #####################################
+
+            output = pretrained_model(z_batch)
+            if flatten == False:
+              avgpool = nn.AvgPool2d(7)
+              flat = backbone.Flatten()
+              output = flat(avgpool(output))
+            scores  = classifier(output)
+            loss = loss_fn(scores, y_batch)
+
+            #####################################
+            loss.backward()
+
+            classifier_opt.step()
+            
+            if freeze_backbone is False:
+                delta_opt.step()
+
+    
+    output_support = pretrained_model(x_a_i_original.cuda()).view(n_way, n_support, -1)
+    output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
+
+    final = classifier(torch.cat((output_support, output_query), dim =1).cuda())
+
+    batchnorm = model.batchnorm
+
+    final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+
+    z = model.fc2(final.view(-1, *final.size()[2:]))
+    z = z.view(model.n_way, -1, z.size(1))
+
+    if params.method == "gnnnet3":
+        #### copy baseline feature and instantiate classifer
+        baseline_feat = copy.deepcopy(model.feature_baseline)
+        classifier_baseline = Classifier(model.feature_baseline.final_feat_dim, model.n_way) ##instantiate classifier
+        classifier_baseline.cuda()
+    
+        ### freeze layers of baseline feat
+        names_b = []
+        for name, param in baseline_feat.named_parameters():
+            if param.requires_grad:
+                #print(name)
+                names.append(name)
+        
+        names_sub_b = names_b[:-9] ### last Resnet block can adapt
+
+        for name, param in baseline_feat.named_parameters():
+            if name in names_sub_b:
+                param.requires_grad = False   
+
+        delta_opt_b = torch.optim.Adam(filter(lambda p: p.requires_grad, baseline_feat.parameters()), lr = 0.01)
+        classifier_opt_b = torch.optim.Adam(classifier_baseline.parameters(), lr = 0.01)
+
+        for epoch in range(total_epoch):
+            rand_id = np.random.permutation(support_size * lengt)
+
+            for j in range(0, support_size * lengt, batch_size):
+                classifier_opt_b.zero_grad()
+                
+                delta_opt_b.zero_grad()
+
+                #####################################
+                selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
+                z_batch = x_a_i[selected_id]
+                y_batch = y_a_i[selected_id] 
+                #####################################
+
+                output = baseline_feat(z_batch)
+                score  = classifier_baseline(output)
+                loss_b = loss_fn(score, y_batch)
+                #grad = torch.autograd.grad(set_loss, fast_parameters, create_graph=True)
+
+                #####################################
+                loss_b.backward() ### think about how to compute gradients and achieve a good initialization
+
+                classifier_opt_b.step()
+                delta_opt_b.step()
+        
+        output_support_b = baseline_feat(x_a_i_original.cuda()).view(n_way, n_support, -1)
+        output_query_b = baseline_feat(x_b_i.cuda()).view(n_way,n_query,-1)
+
+        final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).cuda()).detach()
+        final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
+    
+
+        z_b = model.fc3(final_b.view(-1, *final_b.size()[2:]))
+        z_b = z_b.view(model.n_way, -1, z_b.size(1))
+
+        z = torch.cat([z, z_b], dim = 2) ##concatenate
+
+    z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+
+    score = model.forward_gnn(z_stack)
+    score = torch.nn.functional.softmax(score, dim = 1).detach()
+
+
+    return score

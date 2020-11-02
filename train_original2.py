@@ -7,8 +7,8 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from methods.gnnnet2 import GnnNet
-from methods import gnnnet3
+from methods.gnnnet import GnnNet
+from methods import gnnnet_original
 from methods import gnnnet
 from methods.gnnnet_analogy import GnnNet_Analogy
 from methods import gnn
@@ -25,18 +25,11 @@ from datasets import miniImageNet_few_shot, DTD_few_shot
 
 
 
-def train(base_loader, model, optimization, start_epoch, stop_epoch, params):  
-    for _, param in model.named_parameters():
-            param.requires_grad = True
-    
-    if params.method == "gnnnet3":
-        for _, param in model.feature_baseline.named_parameters():
-            param.requires_grad = False  
-
+def train(base_loader, model, optimization, start_epoch, stop_epoch, params):    
     if optimization == 'SGD':
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
+        optimizer = torch.optim.SGD(model.parameters(), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
     elif optimization == "Adam":
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
+        optimizer = torch.optim.Adam(model.parameters())
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
 
@@ -62,7 +55,8 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
           #print(epoch)
           model.train()
           model.train_loop_finetune(epoch, base_loader,  optimizer ) 
-
+          if epoch == (stop_epoch-1):
+            model.MAML_update()
           if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):
               outfile = os.path.join(params.checkpoint_dir, '{:d}.tar'.format(epoch))
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
@@ -119,7 +113,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['gnnnet3','gnnnet_analogy','dampnet_full_class','dampnet_full_sparse','protonet_damp','maml','relationnet','dampnet_full','dampnet','protonet', 'gnnnet', 'gnnnet_maml', 'metaoptnet', 'gnnnet_normalized', 'gnnnet_neg_margin']:
+    elif params.method in ['gnnnet_analogy','dampnet_full_class','dampnet_full_sparse','protonet_damp','maml','relationnet','dampnet_full','dampnet','protonet', 'gnnnet', 'gnnnet_maml', 'metaoptnet', 'gnnnet_normalized', 'gnnnet_neg_margin']:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -153,8 +147,8 @@ if __name__=='__main__':
             model           = MetaOptNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'gnnnet3':
-            model           = gnnnet3.GnnNet( model_dict[params.model], **train_few_shot_params)
+        elif params.method == 'gnnnet_original':
+            model           = gnnnet_original.GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'gnnnet_analogy':
             model           = GnnNet_Analogy( model_dict[params.model], **train_few_shot_params, params = params)
         
@@ -201,13 +195,9 @@ if __name__=='__main__':
     start_epoch = params.start_epoch
     stop_epoch = params.stop_epoch
 
-    if params.method == "gnnnet3" and params.start_epoch == 400:
-        params.checkpoint_dir = "logs_original_original/logs/checkpoints/miniImageNet/ResNet10_gnnnet_aug_5way_5shot/400.tar"
-
     print(params.checkpoint_dir)
   
     if params.start_epoch > 0:
-    
       resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
       if resume_file is not None:
           tmp = torch.load(resume_file)
@@ -221,17 +211,6 @@ if __name__=='__main__':
                   state.pop(key)
           
           
-      
-      if params.start_epoch == 401 and params.method == "gnnnet3":
-          model.load_state_dict(state)
-          model.instantiate_baseline(params)
-      elif params.start_epoch > 401 and params.method == "gnnnet3":
-        
-          model.instantiate_baseline(params)
-          model.load_state_dict(state)
-      else:
-          model.load_state_dict(state)
-      model.cuda()
-
+      model.load_state_dict(state)
 
     model = train(base_loader, model, optimization, start_epoch, stop_epoch, params)

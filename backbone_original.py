@@ -261,6 +261,59 @@ class SimpleBlock(nn.Module):
         out = self.relu2(out)
         return out
 
+class SimpleBlock_New_Last(nn.Module):
+    maml = False #Default
+    def __init__(self, indim, outdim, half_res, last = False):
+        super(SimpleBlock_New_Last, self).__init__()
+        self.indim = indim
+        self.outdim = outdim
+        final_outdim = outdim
+
+        self.C1 = nn.Conv2d(indim, outdim, kernel_size=3, stride=2 if half_res else 1, padding=1, bias=False)
+        self.BN1 = nn.BatchNorm2d(outdim)
+        if last:
+            final_outdim = 5
+
+        self.C2 = nn.Conv2d(outdim, final_outdim,kernel_size=3, padding=1,bias=False)
+        self.BN2 = nn.BatchNorm2d(final_outdim)
+
+        self.relu1 = nn.ReLU(inplace=True)
+        self.relu2 = nn.ReLU(inplace=True)
+
+        self.parametrized_layers = [self.C1, self.C2, self.BN1, self.BN2]
+
+        self.half_res = half_res
+        self.last = last
+        
+
+        # if the input number of channels is not equal to the output, then need a 1x1 convolution
+        if indim!=outdim:
+
+            self.shortcut = nn.Conv2d(indim, final_outdim, 1, 2 if half_res else 1, bias=False)
+            self.BNshortcut = nn.BatchNorm2d(final_outdim)
+
+            self.parametrized_layers.append(self.shortcut)
+            self.parametrized_layers.append(self.BNshortcut)
+            self.shortcut_type = '1x1'
+        else:
+            self.shortcut_type = 'identity'
+
+        for layer in self.parametrized_layers:
+            init_layer(layer)
+
+    def forward(self, x):
+        out = self.C1(x)
+        out = self.BN1(out)
+        out = self.relu1(out)
+
+        out = self.C2(out)
+        out = self.BN2(out)
+        short_out = x if self.shortcut_type == 'identity' else self.BNshortcut(self.shortcut(x))
+        out = out + short_out
+        if not self.last:
+            out = self.relu2(out)
+        return out
+
 class SimpleBlock_New(nn.Module):
     maml = False #Default
     def __init__(self, indim, outdim, half_res, last = False):
@@ -516,11 +569,13 @@ class ResNet_New(nn.Module):
                 B = block(indim, list_of_out_dims[i], half_res, last)
                 trunk.append(B)
                 indim = list_of_out_dims[i]
-
+        
+        indim = 5
         if flatten:
             avgpool = nn.AvgPool2d(7)
             trunk.append(avgpool)
             trunk.append(Flatten())
+            
             self.final_feat_dim = indim
         else:
             self.final_feat_dim = [ indim, 7, 7]
@@ -613,6 +668,9 @@ def ResNet8(flatten = True):
 
 def ResNet10(flatten = True):
     return ResNet(SimpleBlock, [1,1,1,1],[64,128,256,512], flatten)
+
+def ResNet10_Newv3(flatten = True):
+    return ResNet_New(SimpleBlock_New_Last, [1,1,1,1],[64,128,256,512], flatten)
 
 def ResNet10_New(flatten = True):
     return ResNet_New(SimpleBlock_New, [1,1,2,1],[64,128,256,5], flatten)

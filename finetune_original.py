@@ -17,6 +17,7 @@ from methods.baselinetrain import BaselineTrain
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods.gnnnet2 import GnnNet
+from methods import gnnnet3
 
 from methods import dampnet
 from methods import dampnet_full
@@ -66,17 +67,13 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     classifier = Classifier(pretrained_model.final_feat_dim, n_way)
 
     ###############################################################################################
-    
-    
-    
 
     x = liz_x[0] ### non-changed one
     n_query = x.size(1) - n_support
     x = x.cuda()
     x_var = Variable(x)
 
-
-    batch_size = 5
+    batch_size = 8
     support_size = n_way * n_support 
     
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).cuda() # (25,)
@@ -97,12 +94,10 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
       y_a_i = torch.cat((y_a_i, y_a_aug.cuda()), dim = 0)
     
     
-    #print(y_a_i)
-    
     
     ###############################################################################################
     loss_fn = nn.CrossEntropyLoss().cuda()
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay=0.001)
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01)
     
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -125,23 +120,21 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     ###############################################################################################
     
 
-    if freeze_backbone is False:
-        pretrained_model.train()
-    else:
-        pretrained_model.eval()
     
+    pretrained_model.train()
     classifier.train()
+    total_epoch = params.fine_tune_epoch
+    lengt = len(liz_x) +1
+    for epoch in range(total_epoch):
+        rand_id = np.random.permutation(support_size * lengt)
 
-    for epoch in range(20):
-        rand_id = np.random.permutation(support_size)
-
-        for j in range(0, support_size, batch_size):
+        for j in range(0, support_size * lengt, batch_size):
             classifier_opt.zero_grad()
             if freeze_backbone is False:
                 delta_opt.zero_grad()
 
             #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size)]).cuda()
+            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
             
             z_batch = x_a_i[selected_id].cuda()
             y_batch = y_a_i[selected_id] 
@@ -187,6 +180,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     pretrained_model.load_state_dict(state_temp)
 
     model = model.to(device)
+    model.train()
     
     ###############################################################################################
 
@@ -200,11 +194,10 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     model.n_query = n_query
     x = x.to(device)
     x_var = Variable(x)
-
-
-    batch_size = 5
-    support_size = n_way * n_support 
     
+    support_size = n_way * n_support 
+    batch_size = 8
+
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
 
     x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
@@ -224,12 +217,8 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
       x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
       y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
     
-    #print(y_a_i)
-    
-    
     ###############################################################################################
-    loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
-    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01) ##try it with weight_decay
+    
     #optimizer = torch.optim.Adam(model.parameters())
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -246,7 +235,8 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     if freeze_backbone is False:
         delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
-
+    loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
+    classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01) ##try it with weight_decay
     pretrained_model.to(device)
     classifier.to(device)
     ###############################################################################################
@@ -254,8 +244,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     if freeze_backbone is False:
         pretrained_model.train()
-    else:
-        pretrained_model.eval()
+    
     #pretrained_model_fixed = copy.deepcopy(pretrained_model)
     #pretrained_model_fixed.eval()
     classifier.train()
@@ -297,9 +286,75 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     final = classifier(torch.cat((output_support, output_query), dim =1).cuda())
 
+    batchnorm = model.batchnorm
 
-    z = model.fc2(final.view(-1, *final.size()[2:]))
-    z = z.view(model.n_way, -1, z.size(1))
+    final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+
+    
+
+    if params.method == "gnnnet3":
+        #### copy baseline feature and instantiate classifer
+        baseline_feat = copy.deepcopy(model.feature_baseline)
+        classifier_baseline = Classifier(model.feature_baseline.final_feat_dim, model.n_way) ##instantiate classifier
+        classifier_baseline.cuda()
+    
+        ### freeze layers of baseline feat
+        names_b = []
+        for name, param in baseline_feat.named_parameters():
+            if param.requires_grad:
+                #print(name)
+                names.append(name)
+        
+        names_sub_b = names_b[:-9] ### last Resnet block can adapt
+
+        for name, param in baseline_feat.named_parameters():
+            if name in names_sub_b:
+                param.requires_grad = False   
+
+        delta_opt_b = torch.optim.Adam(filter(lambda p: p.requires_grad, baseline_feat.parameters()), lr = 0.01)
+        classifier_opt_b = torch.optim.Adam(classifier_baseline.parameters(), lr = 0.01)
+
+        for epoch in range(total_epoch):
+            rand_id = np.random.permutation(support_size * lengt)
+
+            for j in range(0, support_size * lengt, batch_size):
+                classifier_opt_b.zero_grad()
+                
+                delta_opt_b.zero_grad()
+
+                #####################################
+                selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
+                z_batch = x_a_i[selected_id]
+                y_batch = y_a_i[selected_id] 
+                #####################################
+
+                output = baseline_feat(z_batch)
+                score  = classifier_baseline(output)
+                loss_b = loss_fn(score, y_batch)
+                #grad = torch.autograd.grad(set_loss, fast_parameters, create_graph=True)
+
+                #####################################
+                loss_b.backward() ### think about how to compute gradients and achieve a good initialization
+
+                classifier_opt_b.step()
+                delta_opt_b.step()
+        
+        output_support_b = baseline_feat(x_a_i_original.cuda()).view(n_way, n_support, -1)
+        output_query_b = baseline_feat(x_b_i.cuda()).view(n_way,n_query,-1)
+
+        final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).cuda()).detach()
+        final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
+        final = torch.cat([final, final_b], dim = 2)
+
+        #z_b = model.fc3(final_b.view(-1, *final_b.size()[2:]))
+        #z_b = z_b.view(model.n_way, -1, z_b.size(1))
+
+        #z = torch.cat([z, z_b], dim = 2) ##concatenate
+        z = model.fc_new(final.view(-1, *final.size()[2:]))
+    else:
+        z = model.fc2(final.view(-1, *final.size()[2:]))
+        z = z.view(model.n_way, -1, z.size(1))
+
     z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
 
     score = model.forward_gnn(z_stack)
@@ -581,6 +636,8 @@ if __name__=='__main__':
 
   if params.method in ["gnnnet", "gnnnet_maml"]:
       model           = GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'gnnnet3':
+        model           = gnnnet3.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
@@ -659,7 +716,11 @@ if __name__=='__main__':
                       classifier_found = True
                       state.pop(key)
               model.classifier = Classifier(model.feat_dim, n_way)
+              model.batchnorm = nn.BatchNorm1d(5, track_running_stats=False)
+              if params.method == "gnnnet3":
+                  model.instantiate_baseline(params)
               model.load_state_dict(state)
+              model.cuda()
       print(checkpoint_dir)
   elif params.method == "all":
         
@@ -766,7 +827,7 @@ if __name__=='__main__':
         scores = nofinetune(liz_x[0], y, model, state, flatten = False, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      else:
+      elif params.method in ["gnnnet", "gnnnet3"]:
         scores = finetune_classify(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
