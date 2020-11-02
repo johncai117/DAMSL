@@ -318,8 +318,10 @@ class GnnNet(MetaTemplate):
 
 
     loss_fn = nn.CrossEntropyLoss().cuda() 
-      
-    total_epoch = 15
+    if self.params.n_shot <= 20:
+      total_epoch = 15
+    else:
+      total_epoch = 5
 
     classifier.train()
     feat_network.train()
