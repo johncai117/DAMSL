@@ -821,11 +821,15 @@ if __name__=='__main__':
       _, y = elem[0]
       
       liz_x = [x for (x,y) in elem]
+
+      liz_y = [y for (x,y) in elem]
+
    
-      #for i in range(leng):
-        #if i >= 1:
-          #assert(torch.all(torch.eq(elem[i][1] , elem[i-1][1])) ) ##assertion check
-      
+      for i in range(leng):
+        if i >= 1:
+          assert(torch.all(torch.eq(elem[i][1] , elem[i-1][1])) ) ##assertion check
+
+      assert(torch.all(torch.eq(elem[0][0] , elem[1][0])) ) ##make sure that the non-transformed versions are the same
   
       if params.method == "relationnet":
         scores = nofinetune(liz_x[0], y, model, state, flatten = False, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
