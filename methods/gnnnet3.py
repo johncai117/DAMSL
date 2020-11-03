@@ -101,8 +101,14 @@ class GnnNet(MetaTemplate):
               state.pop(key)
           if "feature3." in key:
               state.pop(key)
+          elif "feature" in key:
+              newkey = key.replace("feature.", "")
+              state[newkey] = state.pop(key)
+          else:
+              state.pop(key)
+          
             
-    baseline_model.load_state_dict(state)  
+    baseline_model.feature.load_state_dict(state)  
     self.feature_baseline = copy.deepcopy(baseline_model.feature)
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
