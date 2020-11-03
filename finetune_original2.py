@@ -345,12 +345,17 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         final = torch.cat([final, final_b], dim = 2)
 
-        #z_b = model.fc3(final_b.view(-1, *final_b.size()[2:]))
-        #z_b = z_b.view(model.n_way, -1, z_b.size(1))
+        z = model.fc2(final.view(-1, *final.size()[2:]))
+        z = z.view(model.n_way, -1, z.size(1))
+
+        z_b = model.fc3(final_b.view(-1, *final_b.size()[2:]))
+        z_b = z_b.view(model.n_way, -1, z_b.size(1))
+
+        z = torch.cat([z, z_b], dim = 2)
 
         #
-        z = model.fc_new(final.view(-1, *final.size()[2:]))
-        z = z.view(model.n_way, -1, z.size(1))
+        #z = model.fc_new(final.view(-1, *final.size()[2:]))
+        #z = z.view(model.n_way, -1, z.size(1))
     else:
         z = model.fc2(final.view(-1, *final.size()[2:]))
         z = z.view(model.n_way, -1, z.size(1))

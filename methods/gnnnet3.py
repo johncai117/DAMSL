@@ -85,7 +85,7 @@ class GnnNet(MetaTemplate):
   def instantiate_baseline(self, params):
     baseline_model  = BaselineTrain( backbone.ResNet10, 64)
     save_dir =  configs.save_dir
-    self.params = params
+    self.params = copy.deepcopy(params)
     self.params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, "miniImageNet", "ResNet10", "baseline")
     if self.params.train_aug:
         self.params.checkpoint_dir += '_aug'
@@ -413,29 +413,20 @@ class GnnNet(MetaTemplate):
     
     final_b = torch.transpose(self.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
     
-    final = torch.cat([final, final_b], dim = 2)
+    #final = torch.cat([final, final_b], dim = 2)
 
     ### feed into fc and gnn
 
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
 
-    z = self.fc_new(final.view(-1, *final.size()[2:]))
+    z = self.fc2(final.view(-1, *final.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
 
+    
+    z_b = self.fc2(final_b.view(-1, *final_b.size()[2:]))
+    z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
-    #z = self.fc2(final.view(-1, *final.size()[2:]))
-    #z = z.view(self.n_way, -1, z.size(1))
-
-
-    #z_b = self.fc3(final_b.view(-1, *final_b.size()[2:]))
-    #z_b = z_b.view(self.n_way, -1, z_b.size(1))
-
-    #rand_int = np.random.randint(2, size = 10)
-    #print(rand_int)
-    #print(hello)
-
-    #z = torch.cat([z, z_b], dim = 2) ##concatenate
-
+    z = torch.cat([z, z_b], dim = 2)
 
     z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     

@@ -180,7 +180,7 @@ class SetDataset2:
         #for key, item in self.sub_meta.items():
             #print (len(self.sub_meta[key]))
 
-        seed = np.random.randint(1000)
+        seed = 7
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
@@ -254,7 +254,6 @@ class SubDataset2:
         target = self.target_transform(self.cl)
         target_list = [target] * (self.num_aug + 2)
         out = list(zip(img_aug_list, target_list))
-        #print(out)
         #print(hello)
         return out
 
@@ -412,7 +411,7 @@ class SetDataManager2(DataManager):
         sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
         perms = sampler.generate_perm()
 
-        data_loader_params = dict(batch_sampler = sampler, shuffle = False, num_workers = 0, pin_memory = True)       
+        data_loader_params = dict(batch_sampler = perms, shuffle = False, num_workers = 0, pin_memory = True)       
     
         
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
