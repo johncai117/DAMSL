@@ -117,6 +117,38 @@ class GnnNet(MetaTemplate):
     self.feature_baseline.cuda()
     self.fc_new.cuda()
 
+  def instantiate_baseline2(self, params):
+    baseline_model  = BaselineTrain( backbone.ResNet10, 64)
+    save_dir =  configs.save_dir
+    self.params = copy.deepcopy(params)
+    self.params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, "miniImageNet", "ResNet10", "baseline")
+    if self.params.train_aug:
+        self.params.checkpoint_dir += '_aug'
+    
+    resume_file2 = get_assigned_file(self.params.checkpoint_dir, 400)
+    if resume_file2 is not None:
+      tmp = torch.load(resume_file2)
+      
+      state = tmp['state']
+      state_keys = list(state.keys())
+      for _, key in enumerate(state_keys):
+          if "feature2." in key:
+              state.pop(key)
+          if "feature3." in key:
+              state.pop(key)
+          elif "feature" in key:
+              newkey = key.replace("feature.", "")
+              state[newkey] = state.pop(key)
+          else:
+              state.pop(key)
+          
+            
+    baseline_model.feature.load_state_dict(state)  
+    self.feature_baseline = copy.deepcopy(baseline_model.feature)
+    self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
+    del baseline_model
+    self.batchnorm2.cuda()
+
   def set_forward(self,x,is_feature=False):
     x = x.cuda()
 
