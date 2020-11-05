@@ -189,7 +189,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     #print(x.shape)
     #print(n_query)
     model.n_query = n_query
-    x = x.to(device)
+    #x = x
     x_var = Variable(x)
     
     support_size = n_way * n_support 
@@ -197,17 +197,17 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
 
-    x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
+    x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]).to(device)
     x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    x_a_i_original = x_a_i
-    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
+    x_a_i_original = x_a_i.to(device)
+    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:]).to(device)
     
     ### to load all the changed examples
 
     x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
     y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
     for x_aug in liz_x[1:]:
-      x_aug = x_aug.to(device)
+      #x_aug = x_aug
       x_aug = Variable(x_aug)
       x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
       y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device)
@@ -323,7 +323,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
                 #####################################
                 selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
-                z_batch = x_a_i[selected_id]
+                z_batch = x_a_i[selected_id].to(device)
                 y_batch = y_a_i[selected_id] 
                 #####################################
 
