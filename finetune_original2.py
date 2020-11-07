@@ -70,13 +70,13 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 
     x = liz_x[0] ### non-changed one
     n_query = x.size(1) - n_support
-    x = x.cuda()
+    x = x.to(device)
     x_var = Variable(x)
 
     batch_size = 8
     support_size = n_way * n_support 
     
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).cuda() # (25,)
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
 
     x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
@@ -86,15 +86,15 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
     y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
     for x_aug in liz_x[1:]:
-      x_aug = x_aug.cuda()
+      x_aug = x_aug.to(device)
       x_aug = Variable(x_aug)
       x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
       y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) ))
       x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
-      y_a_i = torch.cat((y_a_i, y_a_aug.cuda()), dim = 0)
+      y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
     
     ###############################################################################################
-    loss_fn = nn.CrossEntropyLoss().cuda()
+    loss_fn = nn.CrossEntropyLoss().to(device)
     classifier_opt = torch.optim.Adam(classifier.parameters(), lr = 0.01, weight_decay = 0.001)
     
     names = []
@@ -113,8 +113,8 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
         delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01)
 
 
-    pretrained_model.cuda()
-    classifier.cuda()
+    pretrained_model.to(device)
+    classifier.to(device)
     ###############################################################################################
     
 
@@ -133,7 +133,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
             #####################################
             selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
             
-            z_batch = x_a_i[selected_id].cuda()
+            z_batch = x_a_i[selected_id].to(device)
             y_batch = y_a_i[selected_id] 
             #####################################
 
@@ -152,7 +152,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     pretrained_model.eval()
     classifier.eval()
 
-    output = pretrained_model(x_b_i.cuda())
+    output = pretrained_model(x_b_i.to(device))
     score = classifier(output).detach()
     score = torch.nn.functional.softmax(score, dim = 1).detach()
     return score
@@ -278,10 +278,10 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
                 delta_opt.step()
 
     
-    output_support = pretrained_model(x_a_i_original.cuda()).view(n_way, n_support, -1)
+    output_support = pretrained_model(x_a_i_original.to(device)).view(n_way, n_support, -1)
     output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
 
-    final = classifier(torch.cat((output_support, output_query), dim =1).cuda())
+    final = classifier(torch.cat((output_support, output_query), dim =1).to(device))
 
     batchnorm = model.batchnorm
 
@@ -295,7 +295,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #### copy baseline feature and instantiate classifer
         baseline_feat = copy.deepcopy(model.feature_baseline)
         classifier_baseline = Classifier(model.feature_baseline.final_feat_dim, model.n_way) ##instantiate classifier
-        classifier_baseline.cuda()
+        classifier_baseline.to(device)
     
         ### freeze layers of baseline feat
         names_b = []
@@ -338,10 +338,10 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
                 classifier_opt_b.step()
                 delta_opt_b.step()
         
-        output_support_b = baseline_feat(x_a_i_original.cuda()).view(n_way, n_support, -1)
-        output_query_b = baseline_feat(x_b_i.cuda()).view(n_way,n_query,-1)
+        output_support_b = baseline_feat(x_a_i_original.to(device)).view(n_way, n_support, -1)
+        output_query_b = baseline_feat(x_b_i.to(device)).view(n_way,n_query,-1)
 
-        final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).cuda()).detach()
+        final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).to(device)).detach()
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         #final = torch.cat([final, final_b], dim = 2)
 
@@ -390,7 +390,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
 
     pretrained_model.load_state_dict(state_temp)
 
-    model = model.cuda()
+    model = model.to(device)
     
     ###############################################################################################
 
@@ -405,7 +405,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     batch_size = 5
     support_size = n_way * n_support 
     
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).cuda() # (25,)
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
 
     x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
@@ -421,13 +421,13 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
       x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
       y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) ))
       x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
-      y_a_i = torch.cat((y_a_i, y_a_aug.cuda()), dim = 0)
+      y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
     
     #print(y_a_i)
     
     
     ###############################################################################################
-    loss_fn = nn.CrossEntropyLoss().cuda() ##change this code up ## dorop n way
+    loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
     #optimizer = torch.optim.Adam(model.parameters())
     names = []
     for name, param in pretrained_model.named_parameters():
@@ -454,7 +454,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01) ## do not add weiht decay
 
 
-    pretrained_model.cuda()
+    pretrained_model.to(device)
     ###############################################################################################
     total_epoch = params.fine_tune_epoch
 
@@ -473,9 +473,9 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
                 delta_opt.zero_grad()
 
             #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).cuda()
+            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
             
-            z_batch = x_a_i[selected_id].cuda()
+            z_batch = x_a_i[selected_id].to(device)
             y_batch = y_a_i[selected_id] 
             #####################################
 
@@ -500,11 +500,11 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
     if not linear:
       #model.eval() ## evaluation mode ## comment for transduction learning
       if flatten == True:
-        output_all = pretrained_model(x_inn.cuda()).view(n_way, n_support + n_query, -1).detach()
-        output_query = pretrained_model(x_b_i.cuda()).view(n_way,n_query,-1)
+        output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+        output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
       else:
         output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2]).detach()
-        output_query_original = pretrained_model(x_b_i.cuda())
+        output_query_original = pretrained_model(x_b_i.to(device))
         output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
       model.n_query = n_query
       if ds == True:
@@ -513,7 +513,7 @@ def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, 
         score = model.set_forward(output_all, is_feature = True)
       score = torch.nn.functional.softmax(score, dim = 1).detach()
     elif linear:
-      output_query_original = pretrained_model(x_b_i.cuda())    
+      output_query_original = pretrained_model(x_b_i.to(device))    
       if flatten == False:
         output_query_original = flat(avgpool(output_query_original))
       score = classifier(output_query_original).detach()
@@ -546,17 +546,17 @@ def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= 
         else:
             state_temp.pop(key)
 
-    model = model.cuda()
+    model = model.to(device)
     pretrained_model.load_state_dict(state_temp)
 
-    pretrained_model.cuda()
+    pretrained_model.to(device)
     n_query = x.size(1) - n_support
-    x = x.cuda()
+    x = x.to(device)
     x_var = Variable(x)
 
     support_size = n_way * n_support 
     
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).cuda() # (25,)
+    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
 
     #x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
     #x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
@@ -564,7 +564,7 @@ def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= 
     
     if flatten == True:
 
-      #inn = torch.cat((x_a_i.cuda(), x_b_i.cuda()), dim = 0)
+      #inn = torch.cat((x_a_i.to(device), x_b_i.to(device)), dim = 0)
       output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, -1).detach()
       
     else:
@@ -726,7 +726,7 @@ if __name__=='__main__':
               if params.method == "gnnnet3":
                   model.instantiate_baseline(params)
               model.load_state_dict(state)
-              model.cuda()
+              model.to(device)
       print(checkpoint_dir)
   elif params.method == "all":
         
