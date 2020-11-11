@@ -111,6 +111,7 @@ class SetDataset:
                                   num_workers = 0, #use main thread only or may receive multiple batches
                                   pin_memory = False)
         for cl in self.cl_list:
+            
             sub_dataset = SubDataset(self.sub_meta[cl], cl, transform = transform )
             self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
 
@@ -158,9 +159,10 @@ class SetDataset2:
                                   pin_memory = False)        
         
         for cl in self.cl_list:
+            random.shuffle(self.sub_meta[cl])
             sub_dataset = SubDataset2(self.sub_meta[cl], cl, transform = transloader, num_aug = self.num_aug)       
             self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
-        
+        print(self.sub_meta[0])
 
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.deterministic = False
@@ -207,10 +209,10 @@ class SubDataset2:
     def __getitem__(self,i):
         path = self.sub_meta[i]
         #print(self.cl)
-        #print(path)
-        #if path in total_list:
-            #print(path)
-        total_list.append(path)
+       # if path in total_list:
+           # print(path)
+        #else:
+           # total_list.append(path)
         img_as_img = Image.open(path)
         img_as_img.load()
         img_aug_list = []
