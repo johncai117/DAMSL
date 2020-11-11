@@ -153,14 +153,14 @@ class SetDataset2:
         
         self.sub_dataloader = [] 
         sub_data_loader_params = dict(batch_size = batch_size,
-                                  shuffle = False,
+                                  shuffle = True,
                                   num_workers = 0, #use main thread only or may receive multiple batches
                                   pin_memory = False)        
         
         for cl in self.cl_list:
-            random.shuffle(self.sub_meta[cl]) 
             sub_dataset = SubDataset2(self.sub_meta[cl], cl, transform = transloader, num_aug = self.num_aug)       
             self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
+        
 
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.deterministic = False
@@ -191,7 +191,7 @@ class SubDataset:
     def __len__(self):
         return len(self.sub_meta)
 
-
+total_list = []
 class SubDataset2:
     def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), num_aug = 4, target_transform=identity):
         self.sub_meta = sub_meta
@@ -206,7 +206,12 @@ class SubDataset2:
 
     def __getitem__(self,i):
         path = self.sub_meta[i]
-        img_as_img = Image.open(path).resize((256, 256)).convert('RGB')
+        #print(self.cl)
+        #print(path)
+        #if path in total_list:
+            #print(path)
+        total_list.append(path)
+        img_as_img = Image.open(path)
         img_as_img.load()
         img_aug_list = []
         for j in range(self.num_aug + 2): ## need the plus 2
@@ -255,6 +260,7 @@ class EpisodicBatchSampler2(object):
     def __iter__(self):
         for i in range(self.n_episodes):
             yield self.perms[i]
+            
 
 class TransformLoader:
     def __init__(self, image_size,
@@ -363,7 +369,7 @@ class SetDataManager(DataManager):
         d = CustomDatasetFromImages()
         dataset = SetDataset(self.batch_size, transform, d)
         sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )
-        data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)
+        data_loader_params = dict(batch_sampler = sampler,  shuffle = True, num_workers = 12, pin_memory = True)
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
         return data_loader
 
@@ -395,7 +401,7 @@ class SetDataManager2(DataManager):
         sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
         perms = sampler.generate_perm()
 
-        data_loader_params = dict(batch_sampler = perms, shuffle = False, num_workers = 0, pin_memory = True)       
+        data_loader_params = dict(batch_sampler = perms, num_workers = 0, pin_memory = True)       
      
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
