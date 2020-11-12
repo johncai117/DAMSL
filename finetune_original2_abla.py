@@ -149,8 +149,8 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
             
             delta_opt.step()
 
-    #pretrained_model.eval() ## for transduction 
-    #classifier.eval()
+    pretrained_model.eval()
+    classifier.eval()
 
     output = pretrained_model(x_b_i.to(device))
     score = classifier(output).detach()
@@ -279,17 +279,16 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     
     #output_support = pretrained_model(x_a_i_original.to(device)).view(n_way, n_support, -1)
-    #output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_support+n_query,-1)
+    #output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
 
-    output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+    output1 = pretrained_model(x_b_i.to(device))
+    score1 = classifier(output1).detach()
 
     #final = classifier(torch.cat((output_support, output_query), dim =1).to(device))
 
-    final = classifier(output_all)
+    #batchnorm = model.batchnorm
 
-    batchnorm = model.batchnorm
-
-    final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+    #final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
 
     #z = model.fc2(final.view(-1, *final.size()[2:]))
     #z = z.view(model.n_way, -1, z.size(1))
@@ -345,32 +344,37 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #output_support_b = baseline_feat(x_a_i_original.to(device)).view(n_way, n_support, -1)
         #output_query_b = baseline_feat(x_b_i.to(device)).view(n_way,n_query,-1)
 
-        output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-
-        final_b = classifier_baseline(output_all_b).detach()
-        final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
+        #final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).to(device)).detach()
+        #final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         #final = torch.cat([final, final_b], dim = 2)
 
-        z = model.fc2(final.view(-1, *final.size()[2:]))
-        z = z.view(model.n_way, -1, z.size(1))
+        #z = model.fc2(final.view(-1, *final.size()[2:]))
+        #z = z.view(model.n_way, -1, z.size(1))
 
-        z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
-        z_b = z_b.view(model.n_way, -1, z_b.size(1))
+        #z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
+        #z_b = z_b.view(model.n_way, -1, z_b.size(1))
 
-        z = torch.cat([z, z_b], dim = 2)
+        #z = torch.cat([z, z_b], dim = 2)
 
         #
         #z = model.fc_new(final.view(-1, *final.size()[2:]))
         #z = z.view(model.n_way, -1, z.size(1))
+        output_b = baseline_feat(x_b_i.to(device))
+        score_b = classifier_baseline(output_b).detach()
     else:
         z = model.fc2(final.view(-1, *final.size()[2:]))
         z = z.view(model.n_way, -1, z.size(1))
-        #z = torch.cat([z, z_b], dim = 2) ##concatenate
+        
 
-    z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+    #z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
 
-    score = model.forward_gnn(z_stack)
-    score = torch.nn.functional.softmax(score, dim = 1).detach()
+    #score = model.forward_gnn(z_stack)
+    
+    score1 = torch.nn.functional.softmax(score1, dim = 1).detach()
+
+    score_b = torch.nn.functional.softmax(score_b, dim = 1).detach()
+
+    score = score1 + score_b
 
 
     return score
