@@ -162,7 +162,6 @@ class SetDataset2:
             random.shuffle(self.sub_meta[cl])
             sub_dataset = SubDataset2(self.sub_meta[cl], cl, transform = transloader, num_aug = self.num_aug)       
             self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
-        print(self.sub_meta[0])
 
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.deterministic = False
