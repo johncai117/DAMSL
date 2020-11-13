@@ -306,7 +306,7 @@ class GnnNet(MetaTemplate):
     
     x_b_i = x_var[:, self.n_support:,:,:,:].contiguous().view( self.n_way* self.n_query,   *x.size()[2:]) 
     x_a_i = x_var[:,:self.n_support,:,:,:].contiguous().view( self.n_way* self.n_support, *x.size()[2:])
-    
+    x_inn = x_var.view(self.n_way* (self.n_support + self.n_query), *x.size()[2:]).to(device)
     ### copy over feature and classifier of the main model
     feat_network = copy.deepcopy(self.feature)
     classifier = copy.deepcopy(self.classifier)
@@ -433,20 +433,21 @@ class GnnNet(MetaTemplate):
     for name, param  in self.feature.named_parameters():
         param.requires_grad = True    
 
-    output_support = self.feature(x_a_i.to(device)).view(self.n_way, self.n_support, -1)
-    output_query = self.feature(x_b_i.to(device)).view(self.n_way,self.n_query,-1)
+    output_all = self.feature(x_inn.to(device)).view(self.n_way, self.n_support + self.n_query, -1).detach()
 
-    final = self.classifier(torch.cat((output_support, output_query), dim =1).to(device))
+    final = self.classifier(output_all)
 
     final = torch.transpose(self.batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
 
 
     ### load baseline feature
 
-    output_support_b = baseline_feat(x_a_i.to(device)).view(self.n_way, self.n_support, -1)
-    output_query_b = baseline_feat(x_b_i.to(device)).view(self.n_way,self.n_query,-1)
+    #output_support_b = baseline_feat(x_a_i.to(device)).view(self.n_way, self.n_support, -1)
+    #output_query_b = baseline_feat(x_b_i.to(device)).view(self.n_way,self.n_query,-1)
 
-    final_b = classifier_baseline(torch.cat((output_support_b, output_query_b), dim =1).to(device)).detach()
+    output_all_b = baseline_feat(x_inn.to(device)).view(self.n_way, self.n_support + self.n_query, -1).detach()
+
+    final_b = classifier_baseline(output_all_b).detach()
     
     #print(final.shape)
     #print(final_b.shape)
