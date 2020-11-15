@@ -713,7 +713,9 @@ if __name__=='__main__':
               modelfile   = get_best_file(checkpoint_dir)
           classifier_found = False
           if modelfile is not None:
-              tmp = torch.load(modelfile)
+              if torch.cuda.device_count() == 1:
+                map_loc = torch.device('cuda:0')
+              tmp = torch.load(modelfile, map_location = map_loc)
               state = tmp['state']
               state_keys = list(state.keys())
               for _, key in enumerate(state_keys):
