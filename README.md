@@ -44,6 +44,8 @@ The following datasets are used for this paper.
 
     Direct: command line `kaggle datasets download -d nih-chest-xrays/data`
 
+    Note that some rearrangement of the files is required in order to fit the format of the dataloader.
+
 ### Codebase
 The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
 
@@ -65,18 +67,6 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     These are the downsampled images of the original dataset that were used in this study. Trains faster.
 
 3. Change configuration file `./configs.py` to reflect the correct paths to each dataset. Please see the existing example paths for information on which subfolders these paths should point to.
-
-4. *IMPORTANT* If there is an error in data loading in the next few steps below, it is most likely because of the num_workers argument - multi-threading large files may not work, especially at larger shots. 
- 
-   If error is encountered, do the following:
-   Configure the num_workers=0 in the data_loader_params in the functions of SetDataset2.get_data_loader in:
-  
-    CropDisease_few_shot.py,
-    EuroSAT_few_shot.py,
-    ISIC_few_shot.py,
-    Chest_few_shot.py
-   
-   Another edit you can do is to if you run out of RAM is to change the data_loading process to read images on the fly (this would reduce the memory load but take longer to run). 
 
 
 ## Steps for Testing using Pre-trained Models
@@ -112,6 +102,17 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
  
  Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
  
+3. If there is an error in data loading in the next few steps below, it is most likely because of the num_workers argument - multi-threading large files may not work, especially at larger shots. 
+ 
+   If error is encountered, do the following:
+   Configure the num_workers=0 in the data_loader_params in the functions of SetDataset2.get_data_loader in:
+  
+    CropDisease_few_shot.py,
+    EuroSAT_few_shot.py,
+    ISIC_few_shot.py,
+    Chest_few_shot.py
+   
+   Another edit you can do is to if you run out of RAM is to change the data_loading process to read images on the fly (this would reduce the memory load but take longer to run). 
  
 ## Steps for Re-training and Testing
 
