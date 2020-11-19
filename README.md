@@ -1,35 +1,16 @@
-# Cross-Domain Few-Shot Learning with Meta Fine-Tuning
-
-
-### Challenge Website
-Cross-Domain Few-Shot Learning CVPR 2020 Challenge
-#### https://www.learning-with-limited-labels.com/
+# SB-MTL: Score-based Meta Transfer-Learning for Cross-Domain Few-Shot Learning
 
 ## Introduction
 
-Submission for the CVPR 2020 Challenge. 
+Submission for the CVPR 2021 Main Conference.
 
 ### Abstract
 
- In this paper, we tackle the new Cross-Domain Few-Shot Learning benchmark proposed by the CVPR 2020 Challenge. To this end, we build upon state-of-the-art methods in domain adaptation and few-shot learning to create a system that can be trained to perform both tasks. Inspired by the need to create models designed to be fine-tuned, we explore the integration of transfer-learning (fine-tuning) with meta-learning algorithms, to train a network that has specific layers that are designed to be adapted at a later fine-tuning stage. To do so, we modify the episodic training process to include a first-order MAML-based meta-learning algorithm, and use a Graph Neural Network model as the subsequent meta-learning module to compare the feature vectors. We find that our proposed method helps to boost accuracy significantly, especially when coupled with data augmentation. In our final results, we combine the novel method with the baseline method in a simple ensemble, and achieve an average accuracy of 73.78\% on the benchmark. This is a 6.51\% improvement over existing SOTA baseline methods that were trained solely on miniImagenet.
-
-### Link to arxiv Paper
-
-#### https://arxiv.org/abs/2005.10544
-
-To cite:
-```
-@article{cai2020cross,
-  title={Cross-Domain Few-Shot Learning with Meta Fine-Tuning},
-  author={Cai, John and Shen, Sheng Mei},
-  journal={arXiv preprint arXiv:2005.10544},
-  year={2020}
-}
-```
+  While many deep learning methods have seen significant success in tackling the problem of domain adaptation and few-shot learning separately, far fewer methods are able to jointly tackle both problems in Cross-Domain Few-Shot Learning (CD-FSL). This problem is exacerbated under sharp domain shifts that typify common computer vision applications. In this paper, we present a novel, flexible and effective method to address the CD-FSL problem. Our method, called Score-based Meta Transfer-Learning (SB-MTL), combines transfer-learning and meta-learning by using a MAML-optimized feature encoder and a score-based Graph Neural Network. First, we have a feature encoder that has specific layers designed to be fine-tuned. To do so, we apply a first-order MAML algorithm to find good initializations. Second, instead of directly taking the classification scores after fine-tuning, we interpret the scores as coordinates by mapping the pre-softmax classification scores onto a metric space. Subsequently, we apply a Graph Neural Network to propagate label information from the support set to the query set in our score-based metric space. We test our model on the Broader Study of Cross-Domain Few-Shot Learning (BSCD-FSL) benchmark, which includes a range of target domains with highly varying dissimilarity to the miniImagenet source domain. We observe significant improvements in accuracy across 5-shot, 20-shot and 50-shot, and on the four target domains of the BSCD-FSL benchmark. In terms of average accuracy, our model outperforms previous transfer-learning methods by 5.93% and outperforms previous meta-learning methods by 14.28%.
 
 
 ## Datasets
-The following datasets are used for evaluation in this challenge:
+The following datasets are used for this paper.
 
 ### Source domain: 
 
@@ -64,16 +45,14 @@ The following datasets are used for evaluation in this challenge:
     Direct: command line `kaggle datasets download -d nih-chest-xrays/data`
 
 ### Codebase
-The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl-benchmark [1], while the GNN function was modified from https://github.com/hytseng0509/CrossDomainFewShot. [2]
+The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
 
 ## Results
 
 
 
-* **Average accuracy across all trials: 73.78\% 
-* This is a 6.51\% improvement over the baseline model in the challenge. 
-* This submission won 2nd place in the CVPR 2020 CDFSL challenge.
-
+* **Average accuracy across all trials: 74.06\% 
+* This is a 5.93\% improvement over the best-performing fine-tuning model (Transductive Fine-Tuning) and a 14.28\% improvement over the best-performing meta-learning model (Prototypical Networks).
 
 ## Steps for Loading Data
 
@@ -100,7 +79,7 @@ The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl
 
 ## Steps for Testing using Pre-trained models
 
-1. Download the pre-trained models from a link that you can find here: <https://www.dropbox.com/s/drzg0ptexfjrv7f/logs.zip?dl=0> 
+1. Download the pre-trained models from a link that you can find here: INSERT LINKKKK
 
     If this is for the challenge evaluation, the link has already been included with the submission.
  
@@ -111,25 +90,21 @@ The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl
     • *5-shot*
 
     ```bash
-       python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+       python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     • *20-shot*
 
     ```bash
-        python finetune.py --model ResNet10 --method all  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+        python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
- 
-  • *Example output:* 600 Test Acc = 98.78% +- 0.19%
- 
- 3. Run the main experiments in this paper for 50-shot
- 
+
     • *50-shot*
     ```bash
-     python finetune_50.py --model ResNet10 --method all  --train_aug --n_shot 50 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 50 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
      ```
  
- A different finetune function is used because I had to compress the Graph Neural Network to create a tractable model for 50-shot.
+  • *Example output:* 600 Test Acc = 98.78% +- 0.19%
  
  Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
  
@@ -137,7 +112,7 @@ The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl
 ## Steps for Re-training and Testing
 
 
-1. Train modified baseline model on miniImageNet for 400 epochs
+1. Train supervised model on miniImageNet for 400 epochs
 
     • *Standard supervised learning on miniImageNet*
     ```bash
@@ -148,22 +123,22 @@ The codebase is adapted from the Challenge's Github https://github.com/IBM/cdfsl
     • *GNN on miniImageNet for 5 shot*
 
     ```bash
-        python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
+        python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
     ```
     
     • *GNN on miniImageNet for 20 shot*
 
     ```bash
-        python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
+        python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
     ```
-3. Meta Fine Tuning of GNN model on MiniImageNet for 5 and 20 shots for another 200 epochs
- 
+
     • *GNN on miniImageNet for 5 shot*
 
       ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
       ```
-    
+
+3. Meta Fine Tuning of GNN model on MiniImageNet for 5 and 20 shots for another 200 epochs
    • *GNN on miniImageNet for 20 shot*
 
       ```bash

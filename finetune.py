@@ -14,6 +14,7 @@ import backbone as backbone
 import configs
 from data.datamgr import SimpleDataManager, SetDataManager
 from methods.baselinetrain import BaselineTrain
+from methods.gnnnet import GnnNet
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods import sbmtl
