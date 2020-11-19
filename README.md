@@ -173,7 +173,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
 2. Ablation Study: Linear Meta Transfer-Learning
 
-Same arguments, but run the finetune_ablation.py file instead.
+    Same arguments, but run the finetune_ablation.py file instead.
 
     ```bash
      python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
