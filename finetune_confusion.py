@@ -1007,31 +1007,25 @@ if __name__=='__main__':
 
 
 
-  print("GNN")
-  print("symm perc")
-  print(np.mean(symm_all1))
-  print(1.96 * std_s1/np.sqrt(iter_num))
+ 
 
-  print("symm norm")
-  print(np.mean(norm_all1))
-  print(1.96 * std_n1/np.sqrt(iter_num))
+  print("\nLinear MTL\n")
 
-  print("symm ratio")
-  print(np.mean(ratio_all1))
-  print(1.96 * std_r1/np.sqrt(iter_num))
-  
-
-
-  print("SUM SCORE")
-  print("symm perc")
-  print(np.mean(symm_all2))
-  print(1.96 * std_s2/np.sqrt(iter_num))
-
-  print("symm norm")
+  print("Measure 1 (Table 3)")
   print(np.mean(norm_all2))
   print(1.96 * std_n2/np.sqrt(iter_num))
 
-  print("symm ratio")
+  print("Measure 2 (Table 4)")
   print(np.mean(ratio_all2))
   print(1.96 * std_r2/np.sqrt(iter_num))
+
+   print("\nSBMTL\n")
+
+  print("Measure 1 (Table 3)")
+  print(np.mean(norm_all1))
+  print(1.96 * std_n1/np.sqrt(iter_num))
+
+  print("Measure 2 (Table 4)")
+  print(np.mean(ratio_all1))
+  print(1.96 * std_r1/np.sqrt(iter_num))
 

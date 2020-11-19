@@ -77,7 +77,7 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
    Another edit you can do is to if you run out of RAM is to change the data_loading process to read images on the fly (this would reduce the memory load but take longer to run). 
 
 
-## Steps for Testing using Pre-trained models
+## Steps for Testing using Pre-trained Models
 
 1. Download the pre-trained models from a link that you can find here: INSERT LINKKKK
  
@@ -110,13 +110,13 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 ## Steps for Re-training and Testing
 
 
-1. Train supervised model on miniImageNet for 400 epochs
+1. Train supervised feature encoder on miniImageNet for 400 epochs
 
     • *Standard supervised learning on miniImageNet*
     ```bash
         python ./train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
     ```
-2. Train GNN model on MiniImagenet for 5 and 20 shots for 400 epochs
+2. Train GNN feature encoder on MiniImagenet for 5 and 20 shots for 400 epochs
 
     • *GNN on miniImageNet for 5 shot*
 
@@ -130,47 +130,59 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
         python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
     ```
 
+    • *GNN on miniImageNet for 50 shot*
+
+      ```bash
+          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+      ```
+
+3. Episodic Training of Score-based Meta Transfer-Learning on MiniImageNet for another 200 epochs
+
     • *GNN on miniImageNet for 5 shot*
 
       ```bash
           python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
       ```
-
-3. Meta Fine Tuning of GNN model on MiniImageNet for 5 and 20 shots for another 200 epochs
    • *GNN on miniImageNet for 20 shot*
 
       ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
       ```
- 
-4. Train GNN model on MiniImagenet for 50 shots for 400 epochs
-
-    • *GNN on miniImageNet for 50 shot*
-
-    ```bash
-        python ./train_50.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 0 --stop_epoch 401
-    ```
-5. Meta Fine Tuning of GNN model on MiniImagenet for 50 shots for another 200 epochs
  
     • *GNN on miniImageNet for 50 shot*
 
       ```bash
-          python ./train_50.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+          python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
       ```
     
 6. Test
 
-    Follow steps 2 and 3 in the steps for testing using pretrained models.
+    Follow step 2 and 3 in the "Testing using Pre-trained Models" section.
     
-## Steps for Ablation Studies
+## Steps for Other Results
 
-1. Simple Fine-Tuning
+1. No Data Augmentation
 
-For simple fine-tuning, simply change the arguments for --save-iter in steps 2 and 3 from "600" to "400".
+    To remove data augmentation, simply change the arguments for --gen-examples in steps above from "17" to "0".
 
-2. No Data Augmentation
+2. Ablation Study: Linear Meta Transfer-Learning
 
-To remove data-augmentation, simply change the arguments for --gen-examples in steps 2 and 3 from "17" to "0".
+Same arguments, but run the finetune_ablation.py file instead.
+
+      ```bash
+       python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+      ```
+
+    Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
+
+3. Study of the Confusion Matrix: Asymmetric Confusion
+
+    ```bash
+       python finetune_confusion.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+      ```
+
+    Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
+
 
 ## References
 
