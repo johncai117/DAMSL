@@ -837,12 +837,24 @@ if __name__=='__main__':
   norm_all1 = []
   norm_all2 = []
 
+  ratio_all1 = []
+  ratio_all2 = []
+
   def check_symmetric(a, rtol=1e-05, atol=1e-08):
     return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
   def symm_norm(a):
     diff_a = a - a.T
-    return  np.linalg.norm(diff_a)
+    norm_a = np.linalg.norm(diff_a)
+    a_copy = copy.deepcopy(a)
+    np.fill_diagonal(a_copy, 0)
+    new_norm = np.linalg.norm(a_copy) *2
+    if new_norm > 0:
+      ratio_a = norm_a/ new_norm
+    else:
+      ratio_a = 0
+
+    return norm_a, ratio_a
 
   if params.method != "all":
     for idx, (elem) in enumerate(novel_loader):
@@ -905,16 +917,19 @@ if __name__=='__main__':
       else:
         symm_all2.append(0)
 
-      sn1 = symm_norm(cmat1)
-      sn2 = symm_norm(cmat2)
+      sn1, r1 = symm_norm(cmat1)
+      sn2, r2 = symm_norm(cmat2)
 
       print(sn1)
       print(sn2)
+      print(r1)
+      print(r2)
       
       norm_all1.append(sn1)
       norm_all2.append(sn2)
-      
-      
+
+      ratio_all1.append(r1)
+      ratio_all2.append(r2)
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
@@ -983,24 +998,45 @@ if __name__=='__main__':
   symm_all2 = np.asarray(symm_all2)
   std_s2  = np.std(symm_all2)
   
+  
 
   norm_all1 = np.asarray(norm_all1)
   std_n1  = np.std(norm_all1)
   norm_all2 = np.asarray(norm_all2)
   std_n2  = np.std(norm_all2)
+
+  ratio_all1 = np.asarray(ratio_all1)
+  std_r1  = np.std(ratio_all1)
+  ratio_all2 = np.asarray(ratio_all2)
+  std_r2  = np.std(ratio_all2)
+
+
+
   print("GNN")
   print("symm perc")
   print(np.mean(symm_all1))
   print(1.96 * std_s1/np.sqrt(iter_num))
+
   print("symm norm")
   print(np.mean(norm_all1))
   print(1.96 * std_n1/np.sqrt(iter_num))
+
+  print("symm ratio")
+  print(np.mean(ratio_all1))
+  print(1.96 * std_r1/np.sqrt(iter_num))
   
+
+
   print("SUM SCORE")
   print("symm perc")
   print(np.mean(symm_all2))
   print(1.96 * std_s2/np.sqrt(iter_num))
+
   print("symm norm")
   print(np.mean(norm_all2))
   print(1.96 * std_n2/np.sqrt(iter_num))
+
+  print("symm ratio")
+  print(np.mean(ratio_all2))
+  print(1.96 * std_r2/np.sqrt(iter_num))
 

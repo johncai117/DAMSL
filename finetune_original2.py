@@ -70,7 +70,7 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 
     x = liz_x[0] ### non-changed one
     n_query = x.size(1) - n_support
-    x = x.to(device)
+    x = x
     x_var = Variable(x)
 
     batch_size = 8
@@ -86,7 +86,6 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
     x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
     y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
     for x_aug in liz_x[1:]:
-      x_aug = x_aug.to(device)
       x_aug = Variable(x_aug)
       x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
       y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) ))
@@ -817,13 +816,13 @@ if __name__=='__main__':
 
 
   # replace finetine() with your own method
-  iter_num = 600
+  iter_num = iter_num
+  print(params.n_shot)
   #print(iter_num)
   #print(len(novel_loader))
   
   if params.method != "all":
     for idx, (elem) in enumerate(novel_loader):
-      print(idx)
       leng = len(elem)
       
       
@@ -857,7 +856,8 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      print (correct_this/ count_this *100)
+      print(idx)
+      print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:
     for idx, (elem) in enumerate(novel_loader):
