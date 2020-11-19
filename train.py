@@ -9,7 +9,6 @@ import os
 import glob
 from methods import sbmtl
 from methods import gnnnet
-from methods.gnnnet_analogy import GnnNet_Analogy
 from methods import gnn
 
 import configs
@@ -111,7 +110,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['sbmtl','maml','relationnet',,'protonet', 'gnnnet', 'metaoptnet']:
+    elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet']:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
