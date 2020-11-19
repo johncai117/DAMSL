@@ -2,7 +2,7 @@ import numpy as np
 import os
 import glob
 import argparse
-import backbone_original as backbone
+import backbone as backbone
 
 model_dict = dict(
             ResNet10_Newv3 = backbone.ResNet10_Newv3,ResNet10 = backbone.ResNet10, ResNet10_Newv2 = backbone.ResNet10_Newv2 ,ResNet10_New = backbone.ResNet10_New, ResNet10_FW = backbone.ResNet10_FW, ResNet18 = backbone.ResNet18)

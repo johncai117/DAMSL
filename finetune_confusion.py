@@ -10,17 +10,14 @@ import os
 import glob
 from itertools import combinations
 import copy
-import backbone_original as backbone
+import backbone as backbone
 import configs
 from data.datamgr import SimpleDataManager, SetDataManager
 from methods.baselinetrain import BaselineTrain
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
-from methods.gnnnet2 import GnnNet
-from methods import gnnnet3
+from methods import sbmtl
 
-from methods import dampnet
-from methods import dampnet_full
 
 
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
@@ -294,7 +291,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     #z = z.view(model.n_way, -1, z.size(1))
     
 
-    if params.method == "gnnnet3":
+    if params.method == "sbmtl":
         #### copy baseline feature and instantiate classifer
         baseline_feat = copy.deepcopy(model.feature_baseline)
         classifier_baseline = Classifier(model.feature_baseline.final_feat_dim, model.n_way) ##instantiate classifier
@@ -653,8 +650,8 @@ if __name__=='__main__':
 
   if params.method in ["gnnnet", "gnnnet_maml"]:
       model           = GnnNet( model_dict[params.model], **few_shot_params )
-  elif params.method == 'gnnnet3':
-        model           = gnnnet3.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'sbmtl':
+        model           = sbmtl.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
@@ -736,7 +733,7 @@ if __name__=='__main__':
                       state.pop(key)
               model.classifier = Classifier(model.feat_dim, n_way)
               model.batchnorm = nn.BatchNorm1d(5, track_running_stats=False)
-              if params.method == "gnnnet3":
+              if params.method == "sbmtl":
                   model.instantiate_baseline(params)
               model.load_state_dict(state)
               model.to(device)
@@ -876,7 +873,7 @@ if __name__=='__main__':
         scores = nofinetune(liz_x[0], y, model, state, flatten = False, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      elif params.method in ["gnnnet", "gnnnet3"]:
+      elif params.method in ["gnnnet", "sbmtl"]:
         scores, scores2 = finetune_classify(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
         #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
