@@ -7,7 +7,6 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from methods.gnnnet2 import GnnNet
 from methods import sbmtl
 from methods import gnnnet
 from methods.gnnnet_analogy import GnnNet_Analogy
@@ -18,8 +17,6 @@ import backbone
 from data.datamgr import SimpleDataManager, SetDataManager
 from methods.baselinetrain import BaselineTrain
 from methods.protonet import ProtoNet
-from methods.dampnet import DampNet
-from methods import dampnet_full
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
 
@@ -39,16 +36,12 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
-
+    model.train()
 
     if not params.fine_tune:
       for epoch in range(start_epoch,stop_epoch):
-          #print(epoch)
-          model.train()
-          if params.method in ["gnnnet", "gnnnet_maml", "gnnnet_neg_margin"]:
+          if params.method == "gnnnet":
             model.train_loop2(epoch, base_loader,  optimizer ) 
-          elif params.method in ["dampnet_full_sparse","dampnet_full","dampnet_full_class", "protonet_damp"]:
-            model.train_loop_full(epoch, base_loader, optimizer, stop_epoch)
           else:
             model.train_loop(epoch, base_loader,  optimizer )
           if not os.path.isdir(params.checkpoint_dir):
@@ -59,7 +52,6 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
               torch.save({'epoch':epoch, 'state':model.state_dict()}, outfile)
     else:
       for epoch in range(start_epoch,stop_epoch):
-          #print(epoch)
           model.train()
           model.train_loop_finetune(epoch, base_loader,  optimizer ) 
 
@@ -119,7 +111,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['sbmtl','gnnnet_analogy','dampnet_full_class','dampnet_full_sparse','protonet_damp','maml','relationnet','dampnet_full','dampnet','protonet', 'gnnnet', 'gnnnet_maml', 'metaoptnet', 'gnnnet_normalized', 'gnnnet_neg_margin']:
+    elif params.method in ['sbmtl','maml','relationnet',,'protonet', 'gnnnet', 'metaoptnet']:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -155,27 +147,8 @@ if __name__=='__main__':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'sbmtl':
             model           = sbmtl.GnnNet( model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'gnnnet_analogy':
-            model           = GnnNet_Analogy( model_dict[params.model], **train_few_shot_params, params = params)
         
-        elif params.method == 'gnnnet_maml':
-            gnnnet.GnnNet.maml  = True
-            gnn.Gconv.maml  = True
-            gnn.Wcompute.maml = True
-            model = gnnnet.GnnNet(model_dict[params.model], **train_few_shot_params)
-            print(model.maml)
-        elif params.method == 'gnnnet_neg_margin':
-            model = gnnnet_neg_margin.GnnNet(model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'gnnnet_normalized':
-            model = gnnnet_normalized.GnnNet(model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'dampnet':
-            model = DampNet(model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'dampnet_full':
-            model = dampnet_full.DampNet(model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'dampnet_full_sparse':
-            model = dampnet_full_sparse.DampNet(model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'dampnet_full_class':
-            model = dampnet_full_class.DampNet(model_dict[params.model], **train_few_shot_params)
+       
        
     else:
        raise ValueError('Unknown method')

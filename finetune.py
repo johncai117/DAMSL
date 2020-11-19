@@ -643,7 +643,7 @@ if __name__=='__main__':
 
 
 
-  if params.method in ["gnnnet", "gnnnet_maml"]:
+  if params.method == "gnnnet":
       model           = GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'sbmtl':
         model           = sbmtl.GnnNet( model_dict[params.model], **few_shot_params )
@@ -653,9 +653,6 @@ if __name__=='__main__':
         feature_model = lambda: model_dict[params.model]( flatten = False )
         loss_type = 'mse' if params.method == 'relationnet' else 'softmax'
         model           = RelationNet( feature_model, loss_type = loss_type , **few_shot_params )
-  
-  elif params.method in ["dampnet_full_class"]:
-        model           = dampnet_full_class.DampNet( model_dict[params.model], **few_shot_params)
   elif params.method == "baseline":
         checkpoint_dir_b = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, pretrained_dataset, params.model, "baseline")
         if params.train_aug:
