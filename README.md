@@ -16,7 +16,7 @@ The following datasets are used for this paper.
 
 * miniImageNet.
 
-
+Downsampled for faster training: https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=0
 
 ### Target domains: 
 
@@ -58,7 +58,11 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 
 1. Download the datasets for evaluation (EuroSAT, ISIC2018, Plant Disease, ChestX-Ray8) using the above links. 
 
-2. Download miniImageNet using <https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=0>
+2. Download miniImageNet using:
+
+    ```bash
+       wget https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=1>
+    ```
 
     These are the downsampled images of the original dataset that were used in this study. Trains faster.
 
