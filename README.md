@@ -59,7 +59,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 2. Download miniImageNet using:
 
     ```bash
-       wget https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=1>
+     wget https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=1>
     ```
 
     These are the downsampled images of the original dataset that were used in this study. Trains faster.
@@ -84,7 +84,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 1. Download the pre-trained models from a link that you can find here: https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=0
 
     ```bash
-       wget https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=1
+     wget https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=1
     ```
  
     Unzip the file and place it in the main directory of the project
@@ -94,13 +94,13 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     • *5-shot*
 
     ```bash
-    python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     • *20-shot*
 
     ```bash
-    python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     • *50-shot*
@@ -120,26 +120,26 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
     • *Standard supervised learning on miniImageNet*
     ```bash
-    python train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
+     python train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
     ```
 2. Train GNN feature encoder on MiniImagenet for 5 and 20 shots for 400 epochs
 
     • *GNN on miniImageNet for 5 shot*
 
     ```bash
-    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
     ```
     
     • *GNN on miniImageNet for 20 shot*
 
     ```bash
-    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
     ```
 
     • *GNN on miniImageNet for 50 shot*
 
     ```bash
-    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
     ```
 
 3. Episodic Training of Score-based Meta Transfer-Learning on MiniImageNet for another 200 epochs
@@ -147,18 +147,18 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     • *GNN on miniImageNet for 5 shot*
 
     ```bash
-        python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
     ```
    • *GNN on miniImageNet for 20 shot*
 
     ```bash
-        python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
     ```
  
     • *GNN on miniImageNet for 50 shot*
 
     ```bash
-        python train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+     python train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
     ```
     
 6. Test
@@ -176,7 +176,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 Same arguments, but run the finetune_ablation.py file instead.
 
     ```bash
-    python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
@@ -184,7 +184,7 @@ Same arguments, but run the finetune_ablation.py file instead.
 3. Study of the Confusion Matrix: Asymmetric Confusion
 
    ```bash
-       python finetune_confusion.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune_confusion.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
