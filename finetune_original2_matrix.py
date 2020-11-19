@@ -720,6 +720,8 @@ if __name__=='__main__':
           if modelfile is not None:
               if torch.cuda.device_count() == 1:
                 map_loc = torch.device('cuda:0')
+              else:
+                map_loc = device
               tmp = torch.load(modelfile, map_location = map_loc)
               state = tmp['state']
               state_keys = list(state.keys())
