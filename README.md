@@ -45,7 +45,7 @@ The following datasets are used for this paper.
     Direct: command line `kaggle datasets download -d nih-chest-xrays/data`
 
 ### Codebase
-The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
+The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
 
 ## Results
 
@@ -169,23 +169,23 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 
 1. No Data Augmentation
 
-    To remove data augmentation, simply change the arguments for --gen-examples in steps above from "17" to "0".
+    To remove data augmentation, change the argument for --gen-examples from "17" to "0".
 
 2. Ablation Study: Linear Meta Transfer-Learning
 
 Same arguments, but run the finetune_ablation.py file instead.
 
-      ```bash
+    ```bash
        python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
-      ```
+    ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
 
 3. Study of the Confusion Matrix: Asymmetric Confusion
 
-    ```bash
+   ```bash
        python finetune_confusion.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
-      ```
+    ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
 
