@@ -16,7 +16,7 @@ The following datasets are used for this paper.
 
 * miniImageNet.
 
-Downsampled for faster training: https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=0
+    Downsampled for faster training: https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=0
 
 ### Target domains: 
 
@@ -49,12 +49,10 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 
 ## Results
 
-
-
 * **Average accuracy across all trials: 74.06\% 
 * This is a 5.93\% improvement over the best-performing fine-tuning model (Transductive Fine-Tuning) and a 14.28\% improvement over the best-performing meta-learning model (Prototypical Networks).
 
-## Steps for Loading Data
+## Steps for Loading Data   
 
 1. Download the datasets for evaluation (EuroSAT, ISIC2018, Plant Disease, ChestX-Ray8) using the above links. 
 
@@ -83,7 +81,11 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 
 ## Steps for Testing using Pre-trained Models
 
-1. Download the pre-trained models from a link that you can find here: INSERT LINKKKK
+1. Download the pre-trained models from a link that you can find here: https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=0
+
+    ```bash
+       wget https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=1
+    ```
  
     Unzip the file and place it in the main directory of the project
  

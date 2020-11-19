@@ -1,6 +1,0 @@
-## Ablation studies
-
-# SIMP FT without DA
-python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 0 --test_dataset CropDisease --gen_examples 0 --ablation ablation_NL &&  python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 0 --test_dataset EuroSAT --gen_examples 0 --ablation ablation_NL && python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 0 --test_dataset ISIC --gen_examples 0 --ablation ablation_NL && python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 0 --test_dataset ChestX --gen_examples 0 --ablation ablation_NL
-
-#python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 15 --test_dataset CropDisease --gen_examples 0 &&  python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 15 --test_dataset EuroSAT --gen_examples 0 && python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 15 --test_dataset ISIC --gen_examples 0 && python finetune.py --model ResNet10 --method all  --train_aug --n_shot 5 --save_iter 400 --fine_tune_epoch 15 --test_dataset ChestX --gen_examples 0
