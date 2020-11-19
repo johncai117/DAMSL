@@ -94,13 +94,13 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     • *5-shot*
 
     ```bash
-       python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+    python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     • *20-shot*
 
     ```bash
-        python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+    python finetune.py --model ResNet10 --method sbmtl  --train_aug --n_shot 20 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     • *50-shot*
@@ -120,46 +120,46 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
     • *Standard supervised learning on miniImageNet*
     ```bash
-        python ./train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
+    python train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
     ```
 2. Train GNN feature encoder on MiniImagenet for 5 and 20 shots for 400 epochs
 
     • *GNN on miniImageNet for 5 shot*
 
     ```bash
-        python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
+    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
     ```
     
     • *GNN on miniImageNet for 20 shot*
 
     ```bash
-        python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
+    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
     ```
 
     • *GNN on miniImageNet for 50 shot*
 
-      ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
-      ```
+    ```bash
+    python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+    ```
 
 3. Episodic Training of Score-based Meta Transfer-Learning on MiniImageNet for another 200 epochs
 
     • *GNN on miniImageNet for 5 shot*
 
-      ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
-      ```
+    ```bash
+        python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 5 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+    ```
    • *GNN on miniImageNet for 20 shot*
 
-      ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
-      ```
+    ```bash
+        python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 20 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+    ```
  
     • *GNN on miniImageNet for 50 shot*
 
-      ```bash
-          python ./train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
-      ```
+    ```bash
+        python train.py --dataset miniImageNet --model ResNet10  --method gnnnet --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+    ```
     
 6. Test
 
@@ -176,7 +176,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 Same arguments, but run the finetune_ablation.py file instead.
 
     ```bash
-       python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+    python finetune_ablation.py --model ResNet10 --method sbmtl  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
     ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
