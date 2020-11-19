@@ -80,8 +80,6 @@ The codebase is built on Github https://github.com/IBM/cdfsl-benchmark [1] and h
 ## Steps for Testing using Pre-trained models
 
 1. Download the pre-trained models from a link that you can find here: INSERT LINKKKK
-
-    If this is for the challenge evaluation, the link has already been included with the submission.
  
     Unzip the file and place it in the main directory of the project
  
