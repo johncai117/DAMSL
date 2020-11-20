@@ -344,7 +344,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
         output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
 
-        final_b = classifier_baseline(output_all_b).detach()
+        final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         #final = torch.cat([final, final_b], dim = 2)
 
@@ -368,7 +368,6 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     score = model.forward_gnn(z_stack)
     score = torch.nn.functional.softmax(score, dim = 1).detach()
-
 
     return score
 
@@ -848,6 +847,7 @@ if __name__=='__main__':
       n_query = 15
 
       y_query = np.repeat(range(n_way ), n_query )
+
       topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
       topk_ind = topk_labels.cpu().numpy()
       
