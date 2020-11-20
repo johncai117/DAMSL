@@ -71,10 +71,10 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
 ## Steps for Testing using Pre-trained Models
 
-1. Download the pre-trained models from a link that you can find here: https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=0
+1. Download the pre-trained models from a link that you can find here: https://www.dropbox.com/s/f0hj68z2s5evo8b/logs_final.zip?dl=0
 
     ```bash
-     wget https://www.dropbox.com/s/mwv3pmlsrvijih3/logs_final.zip?dl=1
+     wget https://www.dropbox.com/s/f0hj68z2s5evo8b/logs_final.zip?dl=1
     ```
  
     Unzip the file and place it in the main directory of the project
