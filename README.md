@@ -15,9 +15,9 @@ Submission for the CVPR 2021 Main Conference.
 
 ## Key Contributions
 
-* ** Achives state-of-the-art performance compared to previous methods.
-* ** First method to propose using a Score-based metric learning.
-* ** Provides a flexible framework to combine transfer-based and metric-based meta-learning methods.
+* Achives state-of-the-art performance compared to previous methods.
+* First method to propose using pre-softmax classification scores as coordinates for a metric space.
+* Provides a flexible framework to combine transfer-based and metric-based meta-learning methods.
 
 ## Datasets
 The following datasets are used for this paper.
