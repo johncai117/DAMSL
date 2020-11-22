@@ -15,7 +15,7 @@ Submission for the CVPR 2021 Main Conference.
 
 ## Key Contributions
 
-* ** Achives state-of-the-art compared to previous methods.
+* ** Achives state-of-the-art performance compared to previous methods.
 * ** First method to propose using a Score-based metric learning.
 * ** Provides a flexible framework to combine transfer-based and metric-based meta-learning methods.
 
