@@ -8,6 +8,16 @@ Submission for the CVPR 2021 Main Conference.
 
   While many deep learning methods have seen significant success in tackling the problem of domain adaptation and few-shot learning separately, far fewer methods are able to jointly tackle both problems in Cross-Domain Few-Shot Learning (CD-FSL). This problem is exacerbated under sharp domain shifts that typify common computer vision applications. In this paper, we present a novel, flexible and effective method to address the CD-FSL problem. Our method, called Score-based Meta Transfer-Learning (SB-MTL), combines transfer-learning and meta-learning by using a MAML-optimized feature encoder and a score-based Graph Neural Network. First, we have a feature encoder that has specific layers designed to be fine-tuned. To do so, we apply a first-order MAML algorithm to find good initializations. Second, instead of directly taking the classification scores after fine-tuning, we interpret the scores as coordinates by mapping the pre-softmax classification scores onto a metric space. Subsequently, we apply a Graph Neural Network to propagate label information from the support set to the query set in our score-based metric space. We test our model on the Broader Study of Cross-Domain Few-Shot Learning (BSCD-FSL) benchmark, which includes a range of target domains with highly varying dissimilarity to the miniImagenet source domain. We observe significant improvements in accuracy across 5-shot, 20-shot and 50-shot, and on the four target domains of the BSCD-FSL benchmark. In terms of average accuracy, our model outperforms previous transfer-learning methods by 5.93% and outperforms previous meta-learning methods by 14.28%.
 
+## Results
+
+* **Average accuracy across all trials: 74.06\% 
+* This is a 5.93\% improvement over the best-performing fine-tuning model (Transductive Fine-Tuning) and a 14.28\% improvement over the best-performing meta-learning model (Prototypical Networks).
+
+## Key Contributions
+
+* ** Achives state-of-the-art compared to previous methods.
+* ** First method to propose using a Score-based metric learning.
+* ** Provides a flexible framework to combine transfer-based and metric-based meta-learning methods.
 
 ## Datasets
 The following datasets are used for this paper.
@@ -49,10 +59,6 @@ The following datasets are used for this paper.
 ### Codebase
 The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
 
-## Results
-
-* **Average accuracy across all trials: 74.06\% 
-* This is a 5.93\% improvement over the best-performing fine-tuning model (Transductive Fine-Tuning) and a 14.28\% improvement over the best-performing meta-learning model (Prototypical Networks).
 
 ## Steps for Loading Data   
 
