@@ -17,7 +17,7 @@ from methods.baselinetrain import BaselineTrain
 from methods.gnnnet import GnnNet
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
-from methods import sbmtl
+from methods import sbmtl2
 
 
 
@@ -667,7 +667,7 @@ if __name__=='__main__':
   if params.method == "gnnnet":
       model           = GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'sbmtl':
-        model           = sbmtl.GnnNet( model_dict[params.model], **few_shot_params )
+        model           = sbmtl2.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
