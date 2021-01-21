@@ -362,12 +362,14 @@ class GnnNet(MetaTemplate):
     z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
     z = torch.cat([z, z_b], dim = 2)
+    
+    
 
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
+    #z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
+    #assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
     
-    scores = self.forward_gnn(z_stack)
+    #scores = self.forward_gnn(z_stack)
     return scores
 
   def forward_gnn(self, zs):
