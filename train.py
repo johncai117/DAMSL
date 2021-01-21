@@ -7,7 +7,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from methods import sbmtl
+from methods import sbmtl2
 from methods import gnnnet
 from methods import gnn
 
@@ -145,7 +145,7 @@ if __name__=='__main__':
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'sbmtl':
-            model           = sbmtl.GnnNet( model_dict[params.model], **train_few_shot_params)
+            model           = sbmtl2.GnnNet( model_dict[params.model], **train_few_shot_params)
         
        
        
