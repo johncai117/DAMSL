@@ -348,25 +348,47 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         #final = torch.cat([final, final_b], dim = 2)
 
-        z = model.fc2(final.view(-1, *final.size()[2:]))
-        z = z.view(model.n_way, -1, z.size(1))
+        #z = model.fc2(final.view(-1, *final.size()[2:]))
+        #z = z.view(model.n_way, -1, z.size(1))
 
-        z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
-        z_b = z_b.view(model.n_way, -1, z_b.size(1))
+        #z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
+        #z_b = z_b.view(model.n_way, -1, z_b.size(1))
 
-        z = torch.cat([z, z_b], dim = 2)
+        #z = torch.cat([z, z_b], dim = 2)
 
         #
         #z = model.fc_new(final.view(-1, *final.size()[2:]))
         #z = z.view(model.n_way, -1, z.size(1))
+        
+        z = self.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
+        z = z.view(self.n_way, -1, z.size(1))
+
+        z_b = self.fc_deep(final_b.view(-1, *final_b.size()[2:]))
+        z_b = z_b.view(self.n_way, -1, z_b.size(1))
+
+        z = torch.cat([z, z_b], dim = 2)
+
+        z_support = z[:,:self.n_support,:].contiguous()
+        z_query = z[:,self.n_support:,:].contiguous()
+
+        z_proto     = z_support.view(self.n_way, self.n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
+        z_query     = z_query.contiguous().view(self.n_way* self.n_query, -1 )
+
+        dists = euclidean_dist(z_query, z_proto)
+        score = -dists
     else:
         z = model.fc2(final.view(-1, *final.size()[2:]))
         z = z.view(model.n_way, -1, z.size(1))
         #z = torch.cat([z, z_b], dim = 2) ##concatenate
 
-    z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+    #z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
 
-    score = model.forward_gnn(z_stack)
+    #score = model.forward_gnn(z_stack)
+    
+
+    
+    
+    
     score = torch.nn.functional.softmax(score, dim = 1).detach()
 
     return score
