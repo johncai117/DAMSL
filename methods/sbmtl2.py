@@ -120,6 +120,7 @@ class GnnNet(MetaTemplate):
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
     self.fc_new.to(device)
+    self.fc_deep.to(device)
 
   def instantiate_baseline2(self, params):
     baseline_model  = BaselineTrain( backbone.ResNet10, 64)
