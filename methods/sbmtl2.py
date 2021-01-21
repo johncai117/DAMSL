@@ -16,6 +16,19 @@ from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+def euclidean_dist( x, y):
+    # x: N x D
+    # y: M x D
+    n = x.size(0)
+    m = y.size(0)
+    d = x.size(1)
+    assert d == y.size(1)
+
+    x = x.unsqueeze(1).expand(n, m, d)
+    y = y.unsqueeze(0).expand(n, m, d)
+
+    return torch.pow(x - y, 2).sum(2)
+
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -102,6 +115,7 @@ class GnnNet(MetaTemplate):
     self.feature_baseline = copy.deepcopy(baseline_model.feature)
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    self.fc_deep = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.BatchNorm1d(32, track_running_stats=False)) ## deep NN
     del baseline_model
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
@@ -355,15 +369,22 @@ class GnnNet(MetaTemplate):
 
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
 
-    z = self.fc2(final.view(-1, *final.size()[2:]))
+    z = self.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
     z = z.view(self.n_way, -1, z.size(1))
 
-    z_b = self.fc2(final_b.view(-1, *final_b.size()[2:]))
+    z_b = self.fc_deep(final_b.view(-1, *final_b.size()[2:]))
     z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
     z = torch.cat([z, z_b], dim = 2)
     
+    z_support = z[:,:self.n_support,:].contiguous()
+    z_query = z[:,self.n_support:,:].contiguous()
     
+    z_proto     = z_support.view(self.n_way, self.n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
+    z_query     = z_query.contiguous().view(self.n_way* self.n_query, -1 )
+
+    dists = euclidean_dist(z_query, z_proto)
+    scores = -dists
 
     #z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     
