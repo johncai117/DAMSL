@@ -14,7 +14,7 @@ import configs
 from methods.baselinetrain import BaselineTrain
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 def euclidean_dist( x, y):
     # x: N x D
@@ -381,12 +381,14 @@ class GnnNet(MetaTemplate):
     z_support = z[:,:self.n_support,:].contiguous()
     z_query = z[:,self.n_support:,:].contiguous()
     
-    z_proto     = z_support.view(self.n_way, self.n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
-    z_query     = z_query.contiguous().view(self.n_way* self.n_query, -1 )
+    z_support    = z_support.view(self.n_way,self.n_support, -1 ).unsqueeze(0) #.mean(1) #the shape of z is [n_data, n_dim]
+    z_query     = z_query.view(self.n_way* self.n_query, -1 ).unsqueeze(1).unsqueeze(1)
 
-    dists = euclidean_dist(z_query, z_proto)
+    dists = torch.pow(z_query - z_support, 2).sum(3).mean(2)
+
+
+    #dists = euclidean_dist(z_query, z_proto)
     scores = -dists
-
     #z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     
     #assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
