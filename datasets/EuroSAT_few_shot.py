@@ -345,7 +345,7 @@ class SetDataManager2(DataManager):
         sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
         perms = sampler.generate_perm()
 
-        data_loader_params = dict(batch_sampler = sampler, num_workers = 0, pin_memory = True)       
+        data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
      
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
