@@ -115,7 +115,7 @@ class GnnNet(MetaTemplate):
     self.feature_baseline = copy.deepcopy(baseline_model.feature)
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
-    self.fc_deep = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.BatchNorm1d(32, track_running_stats=False)) ## deep NN
+    self.fc_deep = nn.Sequential(nn.Linear(self.n_way, 32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32)) ## deep NN
     del baseline_model
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
