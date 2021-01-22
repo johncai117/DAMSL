@@ -18,6 +18,7 @@ from methods.gnnnet import GnnNet
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods import sbmtl2
+from methods.protonet import euclidean_dist
 
 
 

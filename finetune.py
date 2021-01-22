@@ -18,7 +18,7 @@ from methods.gnnnet import GnnNet
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods import sbmtl
-
+from methods.protonet import euclidean_dist
 
 
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
