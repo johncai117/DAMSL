@@ -68,7 +68,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 2. Download miniImageNet using:
 
     ```bash
-     wget https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=1>
+     wget https://www.dropbox.com/s/sbttsmb1cca0y0k/miniImagenet3.zip?dl=1
     ```
 
     These are the downsampled images of the original dataset that were used in this study. Trains faster.
