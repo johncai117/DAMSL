@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Submission for the CVPR 2021 Main Conference.
+Submission for the ICCV 2021 Main Conference.
 
 ### Abstract
 
