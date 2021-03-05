@@ -25,9 +25,9 @@ from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get
 
 from utils import *
 
-from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot, CUB_few_shot
+from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot, CUB_few_shot, cifar_few_shot, caltech256_few_shot
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 
 class Classifier(nn.Module):
@@ -806,10 +806,19 @@ if __name__=='__main__':
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
 
   elif params.test_dataset == "CUB":
-    print ("Loading DTD")
+    print ("Loading CUB")
     datamgr             =  CUB_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
   
+  elif params.test_dataset == "Caltech":
+    print ("Loading Caltech")
+    datamgr             =  caltech256_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
+
+  elif params.test_dataset == "Cifar":
+    print ("Loading Cifar")
+    datamgr             =  cifar_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
   ## uncomment code below to see if code is same across loaders
   
 

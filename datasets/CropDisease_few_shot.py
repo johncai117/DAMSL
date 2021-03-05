@@ -313,11 +313,8 @@ class SetDataManager2(DataManager):
     def get_data_loader(self, num_aug = 4): #parameters that would change on train/val set
        
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
-
         sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
-
         data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
-     
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
         return data_loader

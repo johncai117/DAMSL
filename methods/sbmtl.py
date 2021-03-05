@@ -10,11 +10,11 @@ import math
 import random
 import torch.nn.functional as F
 import configs
-
+from utils import device
 from methods.baselinetrain import BaselineTrain
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
