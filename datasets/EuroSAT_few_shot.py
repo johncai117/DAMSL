@@ -185,26 +185,6 @@ class EpisodicBatchSampler(object):
         for i in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
 
-class EpisodicBatchSampler2(object):
-    def __init__(self, n_classes, n_way, n_episodes):
-        self.n_classes = n_classes
-        self.n_way = n_way
-        self.n_episodes = n_episodes
-
-    def __len__(self):
-        return self.n_episodes
-    
-    def generate_perm(self):
-        self.perms = []
-        for i in range(self.n_episodes):
-          self.perms.append(torch.randperm(self.n_classes)[:self.n_way])
-
-        return self.perms
-
-    def __iter__(self):
-        for i in range(self.n_episodes):
-            yield self.perms[i]
-
 class TransformLoader:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
@@ -342,8 +322,7 @@ class SetDataManager2(DataManager):
        
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
 
-        sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
-        perms = sampler.generate_perm()
+        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
 
         data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
      

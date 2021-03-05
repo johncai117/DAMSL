@@ -28,7 +28,7 @@ class SimpleDataset:
         self.meta['image_names'] = []
         self.meta['image_labels'] = []
 
-        d = ImageFolder(DTD_path)
+        d = ImageFolder(CUB_path)
 
         for i, (data, label) in enumerate(d):
             self.meta['image_names'].append(data)
@@ -49,15 +49,18 @@ class SetDataset:
     def __init__(self, batch_size, transform):
 
         self.sub_meta = {}
-        self.cl_list = range(47)
+        self.cl_list = range(200)
 
         for cl in self.cl_list:
             self.sub_meta[cl] = []
 
-        d = ImageFolder(DTD_path)
+        d = ImageFolder(CUB_path)
 
         for i, (data, label) in enumerate(d):
             self.sub_meta[label].append(data)
+
+        #for key, item in self.sub_meta.items():
+            #print (len(self.sub_meta[key]))
     
         self.sub_dataloader = [] 
         sub_data_loader_params = dict(batch_size = batch_size,
@@ -74,11 +77,12 @@ class SetDataset:
     def __len__(self):
         return len(self.sub_dataloader)
 
+
 class SetDataset2:
     def __init__(self, batch_size, dat, transloader, num_aug=4):
 
         self.sub_meta = {}
-        self.cl_list = range(47)
+        self.cl_list = range(200)
         self.num_aug = num_aug
 
         for cl in self.cl_list:
@@ -86,8 +90,11 @@ class SetDataset2:
 
         for i, (data, label) in enumerate(dat):
             self.sub_meta[label].append(i)
-            
-        seed = 10
+
+        #for key, item in self.sub_meta.items():
+            #print (len(self.sub_meta[key]))
+
+        seed = 7
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
@@ -119,7 +126,6 @@ class SetDataset2:
 
     def __len__(self):
         return len(self.sub_dataloader)
-
 
 class SubDataset:
     def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
@@ -182,7 +188,7 @@ class EpisodicBatchSampler(object):
 class TransformLoader:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.4, Contrast=0.4, Color=0.4)):
+                 jitter_param       = dict(Brightness=0.1, Contrast=0.1, Color=0.05)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
@@ -193,7 +199,7 @@ class TransformLoader:
             return method
         method = getattr(transforms, transform_type)
         if transform_type=='RandomSizedCrop':
-            return method(self.image_size) 
+            return method(self.image_size, scale=(0.5, 0.9)) 
         elif transform_type=='CenterCrop':
             return method(self.image_size) 
         elif transform_type=='Scale':
@@ -205,18 +211,17 @@ class TransformLoader:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
+            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip' ,'ToTensor', 'Normalize']
         else:
             transform_list = ['Scale','CenterCrop', 'ToTensor', 'Normalize']
 
         transform_funcs = [ self.parse_transform(x) for x in transform_list]
         transform = transforms.Compose(transform_funcs)
         return transform
-
 class TransformLoader2:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.2, Contrast=0.2, Color=0.05)):
+                 jitter_param       = dict(Brightness=0.1, Contrast=0.1, Color=0.05)):
         self.image_size = image_size
         self.normalize_param = normalize_param
         self.jitter_param = jitter_param
@@ -239,7 +244,7 @@ class TransformLoader2:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip', 'ToTensor', 'Normalize']
+            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip','ToTensor', 'Normalize']
         else:
             transform_list = ['Scale','CenterCrop', 'ToTensor', 'Normalize']
 
@@ -250,7 +255,6 @@ class TransformLoader2:
         return self.get_composed_transform(True)
     def get_composed_transform_noaug(self):
         return self.get_composed_transform(False)
-
 
 class DataManager(object):
     @abstractmethod
@@ -272,6 +276,8 @@ class SimpleDataManager(DataManager):
 
         return data_loader
 
+
+
 class SetDataManager(DataManager):
     def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100):        
         super(SetDataManager, self).__init__()
@@ -290,6 +296,17 @@ class SetDataManager(DataManager):
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
         return data_loader
 
+class ConcatDataset(torch.utils.data.Dataset):
+    def __init__(self, datasets):
+        self.datasets = datasets
+
+    def __getitem__(self, i):
+        return tuple(d[i] for d in self.datasets)
+
+    def __len__(self):
+        return min(len(d) for d in self.datasets)
+
+
 class SetDataManager2(DataManager):
     def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100):        
         super(SetDataManager2, self).__init__()
@@ -297,19 +314,21 @@ class SetDataManager2(DataManager):
         self.n_way = n_way
         self.batch_size = n_support + n_query
         self.n_eposide = n_eposide
-        self.dat = ImageFolder(DTD_path)
+        self.dat = ImageFolder(CUB_path)
 
         self.trans_loader = TransformLoader2(image_size)
 
     def get_data_loader(self, num_aug = 4): #parameters that would change on train/val set
        
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
+
         sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
+
         data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
+     
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
         return data_loader
-
 
 if __name__ == '__main__':
     pass

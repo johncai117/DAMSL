@@ -241,26 +241,6 @@ class EpisodicBatchSampler(object):
     def __iter__(self):
         for i in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
-
-class EpisodicBatchSampler2(object):
-    def __init__(self, n_classes, n_way, n_episodes):
-        self.n_classes = n_classes
-        self.n_way = n_way
-        self.n_episodes = n_episodes
-
-    def __len__(self):
-        return self.n_episodes
-
-    def generate_perm(self):
-        self.perms = []
-        for i in range(self.n_episodes):
-          self.perms.append(torch.randperm(self.n_classes)[:self.n_way])
-
-        return self.perms
-
-    def __iter__(self):
-        for i in range(self.n_episodes):
-            yield self.perms[i]
             
 
 class TransformLoader:
@@ -399,10 +379,9 @@ class SetDataManager2(DataManager):
        
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
 
-        sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
-        perms = sampler.generate_perm()
+        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
 
-        data_loader_params = dict(batch_sampler = perms, num_workers = 4, pin_memory = True)       
+        data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
      
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
@@ -416,9 +395,3 @@ if __name__ == '__main__':
     base_datamgr            = SetDataManager(224, n_query = 16)
     base_loader             = base_datamgr.get_data_loader(aug = True)
 
-    cnt = 1
-    for i, (x, label) in enumerate(base_loader):
-        if i < cnt:
-            print(label.size())
-        else:
-            break

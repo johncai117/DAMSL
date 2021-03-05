@@ -93,7 +93,7 @@ class SetDataset2:
 
         for i, (data, label) in enumerate(dat):
             self.sub_meta[label].append(i)
-            
+
         seed = 10
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -186,25 +186,6 @@ class EpisodicBatchSampler(object):
         for i in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
 
-class EpisodicBatchSampler2(object):
-    def __init__(self, n_classes, n_way, n_episodes):
-        self.n_classes = n_classes
-        self.n_way = n_way
-        self.n_episodes = n_episodes
-
-    def __len__(self):
-        return self.n_episodes
-    
-    def generate_perm(self):
-        self.perms = []
-        for i in range(self.n_episodes):
-          self.perms.append(torch.randperm(self.n_classes)[:self.n_way])
-
-        return self.perms
-
-    def __iter__(self):
-        for i in range(self.n_episodes):
-            yield self.perms[i] ##this is fixed in later iterations
 
 class TransformLoader:
     def __init__(self, image_size, 
@@ -317,16 +298,6 @@ class SetDataManager(DataManager):
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
         return data_loader
 
-class ConcatDataset(torch.utils.data.Dataset):
-    def __init__(self, datasets):
-        self.datasets = datasets
-
-    def __getitem__(self, i):
-        return tuple(d[i] for d in self.datasets)
-
-    def __len__(self):
-        return min(len(d) for d in self.datasets)
-
 
 class SetDataManager2(DataManager):
     def __init__(self, image_size, n_way=5, n_support=5, n_query=16, n_eposide = 100):        
@@ -343,10 +314,9 @@ class SetDataManager2(DataManager):
        
         dataset = SetDataset2(self.batch_size, self.dat, self.trans_loader, num_aug)
 
-        sampler = EpisodicBatchSampler2(len(dataset), self.n_way, self.n_eposide )  
-        perms = sampler.generate_perm()
+        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
 
-        data_loader_params = dict(batch_sampler = perms, num_workers = 4, pin_memory = True)       
+        data_loader_params = dict(batch_sampler = sampler, num_workers = 4, pin_memory = True)       
      
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
     
@@ -358,10 +328,5 @@ if __name__ == '__main__':
     base_datamgr            = SetDataManager(224, n_query = 16)
     base_loader             = base_datamgr.get_data_loader(aug = True)
 
-    cnt = 1
-    for i, (x, label) in enumerate(base_loader):
-        if i < cnt:
-            print(label)
-        else:
-            break
+    
 
