@@ -93,10 +93,7 @@ class SetDataset2:
 
         for i, (data, label) in enumerate(dat):
             self.sub_meta[label].append(i)
-
-        #for key, item in self.sub_meta.items():
-            #print (len(self.sub_meta[key]))
-
+            
         seed = 10
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)

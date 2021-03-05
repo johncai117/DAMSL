@@ -25,7 +25,7 @@ from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get
 
 from utils import *
 
-from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot
+from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -799,6 +799,12 @@ if __name__=='__main__':
     datamgr             =  Chest_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
 
+
+  elif params.test_dataset == "DTD":
+    print ("Loading DTD")
+    datamgr             =  DTD_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
+
   ## uncomment code below to see if code is same across loaders
   
 
@@ -892,12 +898,6 @@ if __name__=='__main__':
       acc_all.append((correct_this/ count_this *100))
       
       
-
-          
-          
-
-
-          
           
           ###############################################################################################
 

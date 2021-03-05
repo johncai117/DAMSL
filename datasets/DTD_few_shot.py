@@ -74,6 +74,53 @@ class SetDataset:
     def __len__(self):
         return len(self.sub_dataloader)
 
+class SetDataset2:
+    def __init__(self, batch_size, dat, transloader, num_aug=4):
+
+        self.sub_meta = {}
+        self.cl_list = range(38)
+        self.num_aug = num_aug
+
+        for cl in self.cl_list:
+            self.sub_meta[cl] = []
+
+        for i, (data, label) in enumerate(dat):
+            self.sub_meta[label].append(i)
+            
+        seed = 10
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+        np.random.seed(seed)  # Numpy module.
+        import random
+        random.seed(seed)  # Python random module.
+        torch.manual_seed(seed)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.enabled = False
+        
+        self.sub_dataloader = [] 
+        sub_data_loader_params = dict(batch_size = batch_size,
+                                  shuffle = True,
+                                  num_workers = 0, #use main thread only or may receive multiple batches
+                                  pin_memory = False)        
+        
+        for cl in self.cl_list:
+            random.shuffle(self.sub_meta[cl])
+            sub_dataset = SubDataset2(self.sub_meta[cl], cl, dat, transform = transloader, num_aug = self.num_aug)       
+            self.sub_dataloader.append( torch.utils.data.DataLoader(sub_dataset, **sub_data_loader_params) )
+
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.enabled = True
+
+    def __getitem__(self, i):
+        return next(iter(self.sub_dataloader[i]))
+
+    def __len__(self):
+        return len(self.sub_dataloader)
+
+
 class SubDataset:
     def __init__(self, sub_meta, cl, transform=transforms.ToTensor(), target_transform=identity):
         self.sub_meta = sub_meta
@@ -87,6 +134,35 @@ class SubDataset:
         target = self.target_transform(self.cl)
         return img, target
 
+    def __len__(self):
+        return len(self.sub_meta)
+
+class SubDataset2:
+    def __init__(self, sub_meta, cl, d, transform=transforms.ToTensor(), num_aug = 4, target_transform=identity):
+        self.sub_meta = sub_meta
+        self.cl = cl
+        self.num_aug = num_aug
+        self.d = d
+        ## load two none-transformed versions for consistency
+        self.transform_list = [transform.get_composed_transform_noaug] + [transform.get_composed_transform_noaug]
+        for i in range(self.num_aug):
+          transform_ = transform.get_composed_transform_aug
+          self.transform_list.append(transform_)
+        self.target_transform = target_transform
+
+    def __getitem__(self,i):
+        samp , _ = self.d[self.sub_meta[i]] ## access item on the fly
+        img_as_img = samp
+        img_as_img.load()
+        img_aug_list = []
+        for j in range(self.num_aug + 2): ## need the plus 2
+          img_transform_func = self.transform_list[j]
+          img_func = img_transform_func()
+          img_aug_list.append(img_func(img_as_img))
+        target = self.target_transform(self.cl)
+        target_list = [target] * (self.num_aug + 2)
+        out = list(zip(img_aug_list, target_list))
+        return out
     def __len__(self):
         return len(self.sub_meta)
 
