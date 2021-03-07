@@ -20,14 +20,11 @@ from methods.protonet import ProtoNet
 from methods import sbmtl
 from methods.protonet import euclidean_dist
 
-
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
 
 from utils import *
 
-from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot, CUB_few_shot, cifar_few_shot, caltech256_few_shot
-
-
+from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot, CUB_few_shot, cifar_few_shot, caltech256_few_shot, cars_few_shot, plantae_few_shot, places_few_shot
 
 
 class Classifier(nn.Module):
@@ -805,19 +802,39 @@ if __name__=='__main__':
     datamgr             =  DTD_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
 
+
   elif params.test_dataset == "CUB":
     print ("Loading CUB")
     datamgr             =  CUB_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
   
+
   elif params.test_dataset == "Caltech":
     print ("Loading Caltech")
     datamgr             =  caltech256_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
 
+
   elif params.test_dataset == "Cifar":
     print ("Loading Cifar")
     datamgr             =  cifar_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
+  
+
+  elif params.test_dataset == "Cars":
+    print ("Loading Cars")
+    datamgr             =  cars_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
+  
+
+  elif params.test_dataset == "Places":
+    print ("Loading Places")
+    datamgr             =  places_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
+    novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
+
+  elif params.test_dataset == "Plantae":
+    print ("Loading Plantae")
+    datamgr             =  plantae_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
   ## uncomment code below to see if code is same across loaders
   
@@ -873,8 +890,9 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      print(idx)
-      print(correct_this/ count_this *100)
+      if idx % 100 == 0:
+        print(idx)
+        print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:
     for idx, (elem) in enumerate(novel_loader):

@@ -1,7 +1,26 @@
 import torch
 import numpy as np
+import math
 
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+import subprocess as sp
+import os
+
+def get_gpu_memory():
+  _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
+
+  ACCEPTABLE_AVAILABLE_MEMORY = 1024
+  COMMAND = "nvidia-smi --query-gpu=memory.free --format=csv"
+  memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+  memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+  print(memory_free_values)
+  return memory_free_values
+
+mem = get_gpu_memory()
+
+max_i = np.argmax(mem)
+
+cuda_val = "cuda:" + str(max_i)
+device = torch.device(cuda_val if torch.cuda.is_available() else "cpu")
 
 def adjust_learning_rate(optimizer, epoch, lr=0.01, step1=30, step2=60, step3=90):
     """Sets the learning rate to the initial LR decayed by 10 every X epochs"""
