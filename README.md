@@ -147,7 +147,7 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     • *GNN on miniImageNet for 50 shot*
 
     ```bash
-     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
+     python train.py --dataset miniImageNet --model ResNet10  --method sbmtl --n_shot 50 --train_aug --start_epoch 0 --stop_epoch 401
     ```
 
 3. Episodic Training of Score-based Meta Transfer-Learning on MiniImageNet for another 200 epochs

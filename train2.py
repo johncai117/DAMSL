@@ -18,7 +18,8 @@ from methods.baselinetrain import BaselineTrain
 from methods.protonet import ProtoNet
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
-
+from utils import device
+configs.save_dir = 'logs_final_prev' ##override
 
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):  

@@ -26,7 +26,7 @@ from utils import *
 
 from datasets import ISIC_few_shot, EuroSAT_few_shot, CropDisease_few_shot, Chest_few_shot, miniImageNet_few_shot, DTD_few_shot, CUB_few_shot, cifar_few_shot, caltech256_few_shot, cars_few_shot, plantae_few_shot, places_few_shot
 
-
+configs.save_dir = 'logs_final_prev' ##override
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -357,19 +357,19 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #z = model.fc_new(final.view(-1, *final.size()[2:]))
         #z = z.view(model.n_way, -1, z.size(1))
         
-        z = self.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
-        z = z.view(self.n_way, -1, z.size(1))
+        z = model.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
+        z = z.view(n_way, -1, z.size(1))
 
-        z_b = self.fc_deep(final_b.view(-1, *final_b.size()[2:]))
-        z_b = z_b.view(self.n_way, -1, z_b.size(1))
+        z_b = model.fc_deep(final_b.view(-1, *final_b.size()[2:]))
+        z_b = z_b.view(n_way, -1, z_b.size(1))
 
         z = torch.cat([z, z_b], dim = 2)
 
-        z_support = z[:,:self.n_support,:].contiguous()
-        z_query = z[:,self.n_support:,:].contiguous()
+        z_support = z[:,:n_support,:].contiguous()
+        z_query = z[:,n_support:,:].contiguous()
 
-        z_proto     = z_support.view(self.n_way, self.n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
-        z_query     = z_query.contiguous().view(self.n_way* self.n_query, -1 )
+        z_proto     = z_support.view(n_way, n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
+        z_query     = z_query.contiguous().view(n_way* n_query, -1 )
 
         dists = euclidean_dist(z_query, z_proto)
         score = -dists
@@ -646,7 +646,7 @@ if __name__=='__main__':
 
   ##################################################################
   image_size = 224
-  iter_num = 600
+  iter_num = 200
   n_way  = 5
   pretrained_dataset = "miniImageNet"
   ds = False
@@ -740,11 +740,12 @@ if __name__=='__main__':
                       state.pop(key)
               model.classifier = Classifier(model.feat_dim, n_way)
               model.batchnorm = nn.BatchNorm1d(5, track_running_stats=False)
+              print(checkpoint_dir)
               if params.method == "sbmtl":
                   model.instantiate_baseline(params)
               model.load_state_dict(state)
               model.to(device)
-      print(checkpoint_dir)
+      
   elif params.method == "all":
         
                 
@@ -908,8 +909,9 @@ if __name__=='__main__':
       
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
-      print(idx)
-      print(correct_this/ count_this *100)
+      if idx % 50 == 0:
+          print(idx)
+          print(correct_this/ count_this *100)
       acc_all.append((correct_this/ count_this *100))
   else:
     for idx, (elem) in enumerate(novel_loader):
