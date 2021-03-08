@@ -42,6 +42,7 @@ logs_backup_19Nov/
 logs_final/
 logs_final_prev/
 filelists/CUB/
+logs_final_train/
 256_ObjectCategories.tar
 cifar-100-python.tar.gz
 cifar-100-python/
