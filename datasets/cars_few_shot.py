@@ -217,7 +217,7 @@ class EpisodicBatchSampler(object):
 class TransformLoader:
     def __init__(self, image_size, 
                  normalize_param    = dict(mean= [0.485, 0.456, 0.406] , std=[0.229, 0.224, 0.225]),
-                 jitter_param       = dict(Brightness=0.2, Contrast=0.2, Color=0.05)):
+                 jitter_param       = dict(Brightness=0.1, Contrast=0.1, Color=0.05)):
         
         self.image_size = image_size
         self.normalize_param = normalize_param
@@ -229,7 +229,7 @@ class TransformLoader:
             return method
         method = getattr(transforms, transform_type)
         if transform_type=='RandomSizedCrop':
-            return method(self.image_size, scale=(0.5, 0.9))
+            return method(self.image_size, scale=(0.6, 0.9))
         elif transform_type=='CenterCrop':
             return method(self.image_size) 
         elif transform_type=='Scale':
@@ -250,7 +250,7 @@ class TransformLoader:
         return transform
 
     def get_composed_transform_aug(self):
-        transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip', 'ToTensor', 'Normalize']
+        transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
         transform_funcs = [ self.parse_transform(x) for x in transform_list]
         transform = transforms.Compose(transform_funcs)
         return transform

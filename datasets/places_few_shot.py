@@ -288,7 +288,7 @@ class TransformLoader2:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','RandomVerticalFlip', 'ToTensor', 'Normalize']
+            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'RandomVerticalFlip','ToTensor', 'Normalize']
         else:
             transform_list = ['Scale','CenterCrop', 'ToTensor', 'Normalize']
 

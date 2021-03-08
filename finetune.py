@@ -832,6 +832,7 @@ if __name__=='__main__':
     datamgr             =  places_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)
     novel_loader        = datamgr.get_data_loader(num_aug = params.gen_examples)  ### what if aug is true???
 
+
   elif params.test_dataset == "Plantae":
     print ("Loading Plantae")
     datamgr             =  plantae_few_shot.SetDataManager2(image_size, n_eposide = iter_num, n_query = 15, **few_shot_params)

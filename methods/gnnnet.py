@@ -9,8 +9,7 @@ import copy
 import math
 import random
 import torch.nn.functional as F
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+from utils import device
 
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):

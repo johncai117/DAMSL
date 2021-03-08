@@ -14,7 +14,7 @@ import configs
 from methods.baselinetrain import BaselineTrain
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+from utils import device
 
 def euclidean_dist( x, y):
     # x: N x D
