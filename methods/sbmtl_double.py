@@ -62,7 +62,6 @@ class GnnNet(MetaTemplate):
     self.support_label = support_label.view(1, -1, self.n_way)
 
   def cuda(self):
-    self.feature_baseline2.to(device)
     self.fc.to(device)
     self.fc2.to(device)
     self.fc3.to(device)
@@ -105,11 +104,9 @@ class GnnNet(MetaTemplate):
     self.feature_baseline = copy.deepcopy(load_baseline(400))
     self.feature_baseline2 = copy.deepcopy(load_baseline(450))
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
-    self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
     self.feature_baseline2.to(device)
-    self.fc_new.to(device)
 
   
 
