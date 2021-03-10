@@ -155,21 +155,9 @@ def finetune_linear(liz_x,y, state_in, save_it, linear = False, flatten = True, 
 def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
     ###############################################################################################
     # load pretrained model on miniImageNet
-    pretrained_model = model.feature_baseline2
+    pretrained_model = copy.deepcopy(model.feature_baseline2)
     
-    state_temp = copy.deepcopy(state_in)
-
-    state_keys = list(state_temp.keys())
-    for _, key in enumerate(state_keys):
-        if "feature." in key:
-            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-            state_temp[newkey] = state_temp.pop(key)
-        else:
-            state_temp.pop(key)
-
-
-    #pretrained_model.load_state_dict(state_temp)
-
+    
     model = model.to(device)
     model.train()
     
@@ -275,16 +263,17 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     #output_support = pretrained_model(x_a_i_original.to(device)).view(n_way, n_support, -1)
     #output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_support+n_query,-1)
 
-    output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-
-    #final = classifier(torch.cat((output_support, output_query), dim =1).to(device))
-
-    final = classifier(output_all)
+  
 
     if not params.ablation == "linear":
+      output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+      final = classifier(output_all)
       batchnorm = model.batchnorm
       final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
-
+    else:
+      output_all = pretrained_model(x_b_i.to(device)).detach()
+      final = classifier(output_all)
+      final = torch.nn.functional.softmax(final, dim = 1).detach()
     #z = model.fc2(final.view(-1, *final.size()[2:]))
     #z = z.view(model.n_way, -1, z.size(1))
     
@@ -339,15 +328,22 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #output_support_b = baseline_feat(x_a_i_original.to(device)).view(n_way, n_support, -1)
         #output_query_b = baseline_feat(x_b_i.to(device)).view(n_way,n_query,-1)
 
-        output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+        if not params.ablation == "linear":
 
-        final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
+          output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+
+          final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
         
         
         #final = torch.cat([final, final_b], dim = 2)
-        if params.ablation == "linear":
-          final = torch.nn.functional.softmax(final, dim = 1).detach()
+        elif params.ablation == "linear":
+          
+
+          output_all_b = baseline_feat(x_b_i.to(device)).detach()
+          final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
           final_b = torch.nn.functional.softmax(final_b, dim = 1).detach()
+
+          
           return final + final_b
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         z = model.fc2(final.view(-1, *final.size()[2:]))
@@ -859,7 +855,7 @@ if __name__=='__main__':
   print(params.n_shot)
   #print(iter_num)
   #print(len(novel_loader))
-  
+  print(params.ablation)
   if params.method != "all":
     for idx, (elem) in enumerate(novel_loader):
       leng = len(elem)
@@ -883,10 +879,7 @@ if __name__=='__main__':
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method in ["gnnnet", "sbmtl"]:
-        print(params.ablation)
-          
         scores = finetune_classify(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-        #scores += nofinetune(liz_x[0],y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
       n_way = 5
       n_query = 15
@@ -902,7 +895,7 @@ if __name__=='__main__':
       if idx % 100 == 0:
         print(idx)
         print(correct_this/ count_this *100)
-        print(sum(acc_all) / len(acc_all))
+        #print(sum(acc_all) / len(acc_all))
       
   else:
     for idx, (elem) in enumerate(novel_loader):
@@ -937,6 +930,8 @@ if __name__=='__main__':
       if idx % 10 == 0:
           print(idx)
           print(correct_this/ count_this *100)
+      
+          
       acc_all.append((correct_this/ count_this *100))
       
       
