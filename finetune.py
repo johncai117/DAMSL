@@ -275,18 +275,15 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     #output_support = pretrained_model(x_a_i_original.to(device)).view(n_way, n_support, -1)
     #output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_support+n_query,-1)
 
-    output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-
-    #final = classifier(torch.cat((output_support, output_query), dim =1).to(device))
-
-    final = classifier(output_all)
-
-    batchnorm = model.batchnorm
-
-    final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
-
-    #z = model.fc2(final.view(-1, *final.size()[2:]))
-    #z = z.view(model.n_way, -1, z.size(1))
+    if not params.ablation == "linear":
+      output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+      final = classifier(output_all)
+      batchnorm = model.batchnorm
+      final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+    else:
+      output_all = pretrained_model(x_b_i.to(device)).detach()
+      final = classifier(output_all)
+      final = torch.nn.functional.softmax(final, dim = 1).detach()
     
 
     if params.method == "sbmtl":
@@ -339,9 +336,14 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #output_support_b = baseline_feat(x_a_i_original.to(device)).view(n_way, n_support, -1)
         #output_query_b = baseline_feat(x_b_i.to(device)).view(n_way,n_query,-1)
 
-        output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-
-        final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
+       if not params.ablation == "linear":
+          output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+          final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
+        elif params.ablation == "linear":
+          output_all_b = baseline_feat(x_b_i.to(device)).detach()
+          final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
+          final_b = torch.nn.functional.softmax(final_b, dim = 1).detach()
+          return final + final_b
         final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
         #final = torch.cat([final, final_b], dim = 2)
 
