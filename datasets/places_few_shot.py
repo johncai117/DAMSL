@@ -276,7 +276,7 @@ class TransformLoader2:
             return method
         method = getattr(transforms, transform_type)
         if transform_type=='RandomSizedCrop':
-            return method(self.image_size, scale=(0.7, 0.9))
+            return method(self.image_size, scale=(0.6, 0.9))
         elif transform_type=='CenterCrop':
             return method(self.image_size) 
         elif transform_type=='Scale':
@@ -288,7 +288,7 @@ class TransformLoader2:
 
     def get_composed_transform(self, aug = False):
         if aug:
-            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip', 'RandomVerticalFlip','ToTensor', 'Normalize']
+            transform_list = ['RandomSizedCrop', 'ImageJitter', 'RandomHorizontalFlip','ToTensor', 'Normalize']
         else:
             transform_list = ['Scale','CenterCrop', 'ToTensor', 'Normalize']
 
