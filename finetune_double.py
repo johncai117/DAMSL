@@ -630,7 +630,7 @@ if __name__=='__main__':
 
   ##################################################################
   image_size = 224
-  iter_num = 600
+  iter_num = 200
   n_way  = 5
   pretrained_dataset = "miniImageNet"
   ds = False

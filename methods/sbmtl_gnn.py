@@ -37,10 +37,9 @@ class GnnNet(MetaTemplate):
     self.first = True
 
     # metric function
-    self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
-    self.fc2 = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False)) 
-    self.fc3 = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False)) 
-    self.gnn = GNN_nl(64 + self.n_way, 32, self.n_way)
+    self.fc2 = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    
+    self.gnn = GNN_nl(128 + self.n_way, 64, self.n_way)
     self.method = 'GnnNet'
 
     ## batchnorm and classifier
@@ -62,9 +61,7 @@ class GnnNet(MetaTemplate):
     self.support_label = support_label.view(1, -1, self.n_way)
 
   def cuda(self):
-    self.fc.to(device)
     self.fc2.to(device)
-    self.fc3.to(device)
     self.gnn.to(device)
     self.batchnorm.to(device)
     self.classifier.to(device)
@@ -302,22 +299,18 @@ class GnnNet(MetaTemplate):
     
 
     output_all = feat_network(x_inn.to(device)).view(self.n_way, self.n_support + self.n_query, -1).detach()
-    final = classifier(output_all)
-    final = torch.transpose(self.batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
 
     ### load baseline feature
     output_all_b = baseline_feat(x_inn.to(device)).view(self.n_way, self.n_support + self.n_query, -1).detach()
-    final_b = classifier_baseline(output_all_b).detach()
-    final_b = torch.transpose(self.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
     
     ### feed into fc and gnn
 
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
+    assert(output_all.size(1) == self.n_support + 16) ##16 query samples in each batch
 
-    z = self.fc2(final.view(-1, *final.size()[2:]))
+    z = self.fc2(output_all.view(-1, *output_all.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
 
-    z_b = self.fc2(final_b.view(-1, *final_b.size()[2:]))
+    z_b = self.fc2(output_all_b.view(-1, *output_all_b.size()[2:]))
     z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
     z = torch.cat([z, z_b], dim = 2)

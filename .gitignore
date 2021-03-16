@@ -41,6 +41,7 @@ logs_backup/
 logs_backup_19Nov/
 logs_final/
 logs_final_prev/
+logs_final_train_copy/
 filelists/CUB/
 logs_final_train/
 256_ObjectCategories.tar

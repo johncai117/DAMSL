@@ -336,7 +336,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #output_support_b = baseline_feat(x_a_i_original.to(device)).view(n_way, n_support, -1)
         #output_query_b = baseline_feat(x_b_i.to(device)).view(n_way,n_query,-1)
 
-       if not params.ablation == "linear":
+        if not params.ablation == "linear":
           output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
           final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
         elif params.ablation == "linear":
@@ -629,9 +629,11 @@ if __name__=='__main__':
   np.random.seed(10)
   params = parse_args('train')
 
+  print(params.ablation)
+
   ##################################################################
   image_size = 224
-  iter_num = 600
+  iter_num = 200
   n_way  = 5
   pretrained_dataset = "miniImageNet"
   ds = False
