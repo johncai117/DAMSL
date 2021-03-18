@@ -8,6 +8,7 @@ import time
 import os
 import glob
 from methods import sbmtl_gnn 
+from methods import sbmtl_proto
 from methods import gnnnet
 from methods import gnn
 
@@ -110,7 +111,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "sbmtl_gnn"]:
+    elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "sbmtl_gnn", "sbmtl_proto"]:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -148,7 +149,8 @@ if __name__=='__main__':
             model           = sbmtl.GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'sbmtl_gnn':
             model           = sbmtl_gnn.GnnNet( model_dict[params.model], **train_few_shot_params)
-        
+        elif params.method == 'sbmtl_proto':
+            model           = sbmtl_proto.GnnNet( model_dict[params.model], **train_few_shot_params)
        
        
     else:

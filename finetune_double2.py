@@ -18,6 +18,7 @@ from methods.gnnnet import GnnNet
 from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods import sbmtl_double as sbmtl
+from methods import sbmtl_gnn
 from methods.protonet import euclidean_dist
 configs.save_dir = 'logs_final_train' ##override
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
@@ -627,7 +628,6 @@ def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= 
 if __name__=='__main__':
   np.random.seed(10)
   params = parse_args('train')
-  
 
   ##################################################################
   image_size = 224
