@@ -19,6 +19,7 @@ from methods.baselinefinetune import BaselineFinetune
 from methods.protonet import ProtoNet
 from methods import sbmtl_double as sbmtl
 from methods import sbmtl_gnn
+from methods import sbmtl_proto
 from methods.protonet import euclidean_dist
 configs.save_dir = 'logs_final_train' ##override
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
@@ -268,9 +269,20 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     if not params.ablation == "linear":
       output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-      final = classifier(output_all)
-      batchnorm = model.batchnorm
-      final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+      if params.method == "sbtml":
+        final = classifier(output_all)
+        batchnorm = model.batchnorm
+        final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+        z = model.fc2(final.view(-1, *final.size()[2:]))
+        z = z.view(model.n_way, -1, z.size(1))
+      elif params.method == "sbmtl_gnn":
+        z = model.fc2(output_all.view(-1, *output_all.size()[2:]))
+        z = z.view(model.n_way, -1, z.size(1))
+      elif params.method == "sbmtl_proto":
+        final = classifier(output_all)
+        final = torch.transpose(model.batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
+        z = model.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
+        z = z.view(model.n_way, -1, z.size(1))
     else:
       output_all = pretrained_model(x_b_i.to(device)).detach()
       final = classifier(output_all)
@@ -279,7 +291,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
     #z = z.view(model.n_way, -1, z.size(1))
     
 
-    if params.method == "sbmtl":
+    if "sbmtl" in params.method:
         #### copy baseline feature and instantiate classifer
         baseline_feat = copy.deepcopy(model.feature_baseline)
         classifier_baseline = Classifier(model.feature_baseline.final_feat_dim, model.n_way) ##instantiate classifier
@@ -332,9 +344,32 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         if not params.ablation == "linear":
 
           output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
+          if params.method == "sbmtl":
+            final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
+            final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
+            z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
+            z_b = z_b.view(model.n_way, -1, z_b.size(1))
+          elif params.method == "sbmtl_gnn":
+            z_b = model.fc2(output_all_b.view(-1, *output_all_b.size()[2:]))
+            z_b = z_b.view(n_way, -1, z_b.size(1))
+          elif params.method == "sbmtl_proto":
+            final_b = classifier_baseline(output_all_b).detach()
+            final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
+            z_b = model.fc_deep(final_b.view(-1, *final_b.size()[2:]))
+            z_b = z_b.view(n_way, -1, z_b.size(1))
 
-          final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
-        
+            z = torch.cat([z, z_b], dim = 2)
+    
+            z_support = z[:,:model.n_support,:].contiguous()
+            z_query = z[:,model.n_support:,:].contiguous()
+            
+            z_proto     = z_support.view(model.n_way, model.n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
+            z_query     = z_query.contiguous().view(model.n_way* model.n_query, -1 )
+
+            dists = euclidean_dist(z_query, z_proto)
+            scores = -dists
+            return scores ## early return
+
         
         #final = torch.cat([final, final_b], dim = 2)
         elif params.ablation == "linear":
@@ -346,15 +381,13 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
           
           return final + final_b
-        final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
-        z = model.fc2(final.view(-1, *final.size()[2:]))
-        z = z.view(model.n_way, -1, z.size(1))
+        
+        
 
-        z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
-        z_b = z_b.view(model.n_way, -1, z_b.size(1))
+       
 
+        
         z = torch.cat([z, z_b], dim = 2)
-
         #
         #z = model.fc_new(final.view(-1, *final.size()[2:]))
         #z = z.view(model.n_way, -1, z.size(1))
@@ -373,252 +406,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
 
 
-def finetune(liz_x,y, model, state_in, save_it, linear = False, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5): 
-    ###############################################################################################
-    # load pretrained model on miniImageNet
-    pretrained_model = model_dict[params.model](flatten = flatten)
-    
-    state_temp = copy.deepcopy(state_in)
 
-    state_keys = list(state_temp.keys())
-    for _, key in enumerate(state_keys):
-        if "feature." in key:
-            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-            state_temp[newkey] = state_temp.pop(key)
-        else:
-            state_temp.pop(key)
-
-
-    pretrained_model.load_state_dict(state_temp)
-
-    model = model.to(device)
-    
-    ###############################################################################################
-
-    ###############################################################################################
-    
-    x = liz_x[0] ### non-changed one
-    n_query = x.size(1) - n_support
-    x = x
-    x_var = Variable(x)
-
-
-    batch_size = 5
-    support_size = n_way * n_support 
-    
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
-
-    x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
-    x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
-    
-    ### to load all the changed examples
-
-    x_a_i = torch.cat((x_a_i, x_a_i), dim = 0) ##oversample the first one
-    y_a_i = torch.cat((y_a_i, y_a_i), dim = 0)
-    for x_aug in liz_x[1:]:
-      x_aug = x_aug
-      x_aug = Variable(x_aug)
-      x_a_aug = x_aug[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:])
-      y_a_aug = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) ))
-      x_a_i = torch.cat((x_a_i, x_a_aug), dim = 0)
-      y_a_i = torch.cat((y_a_i, y_a_aug.to(device)), dim = 0)
-    
-    #print(y_a_i)
-    
-    
-    ###############################################################################################
-    loss_fn = nn.CrossEntropyLoss().to(device) ##change this code up ## dorop n way
-    #optimizer = torch.optim.Adam(model.parameters())
-    names = []
-    for name, param in pretrained_model.named_parameters():
-      if param.requires_grad:
-        #print(name)
-        names.append(name)
-
-    
-    #if params.model == "ResNet10_New":
-        #names_change = names[-27:-18]
-        #names_change = [n for n in names_change if "shortcut" not in n]
-        #names_change += names[-18:]
-    #elif params.model == "ResNet10_Newv2":
-        #names_change = names[-18:]
-    #print(names_change)
-    #print(hello)
-    names_change = names[-9:]
-
-    for name, param in pretrained_model.named_parameters():
-      if name not in names_change:
-        param.requires_grad = False
-
-    if freeze_backbone is False:
-        delta_opt = torch.optim.Adam(filter(lambda p: p.requires_grad, pretrained_model.parameters()), lr = 0.01) ## do not add weiht decay
-
-
-    pretrained_model.to(device)
-    ###############################################################################################
-    total_epoch = params.fine_tune_epoch
-
-    if freeze_backbone is False:
-        pretrained_model.train()
-    else:
-        pretrained_model.eval()
-    #pretrained_model_fixed = copy.deepcopy(pretrained_model)
-    #pretrained_model_fixed.eval()
-    lengt = len(liz_x) +1
-    for epoch in range(total_epoch):
-        rand_id = np.random.permutation(support_size * lengt)
-
-        for j in range(0, support_size * lengt, batch_size):
-            if freeze_backbone is False:
-                delta_opt.zero_grad()
-
-            #####################################
-            selected_id = torch.from_numpy( rand_id[j: min(j+batch_size, support_size * lengt)]).to(device)
-            
-            z_batch = x_a_i[selected_id].to(device)
-            y_batch = y_a_i[selected_id] 
-            #####################################
-
-            output = pretrained_model(z_batch)
-            if flatten == False:
-              avgpool = nn.AvgPool2d(7)
-              flat = backbone.Flatten()
-              output = flat(avgpool(output))
-            #scores  = classifier(output)
-            loss = loss_fn(output, y_batch)
-
-            #####################################
-            loss.backward()
-
-            #classifier_opt.step()
-            
-            if freeze_backbone is False:
-                delta_opt.step()
-
-    #pretrained_model.eval() ## for transduction
-    
-    if not linear:
-      #model.eval() ## evaluation mode ## comment for transduction learning
-      if flatten == True:
-        output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-        output_query = pretrained_model(x_b_i.to(device)).view(n_way,n_query,-1)
-      else:
-        output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2]).detach()
-        output_query_original = pretrained_model(x_b_i.to(device))
-        output_query = output_query_original.view(n_way, n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2])
-      model.n_query = n_query
-      if ds == True:
-        score = model.set_forward(output_all, is_feature = True, domain_shift = True)
-      else:
-        score = model.set_forward(output_all, is_feature = True)
-      score = torch.nn.functional.softmax(score, dim = 1).detach()
-    elif linear:
-      output_query_original = pretrained_model(x_b_i.to(device))    
-      if flatten == False:
-        output_query_original = flat(avgpool(output_query_original))
-      score = classifier(output_query_original).detach()
-      
-    #score = torch.nn.functional.softmax(score, dim = 1)
-
-    #print(score.shape)
-
-    #score2 = output_query.view(n_way * n_query,-1)[:,:n_way]
-    #score2 = torch.nn.functional.softmax(score2, dim = 1)
-
-    #score += score2
-
-
-    return score 
-
-
-def nofinetune(x,y, model, state_in, save_it, flatten = True, n_query = 15, ds= False, pretrained_dataset='miniImageNet', freeze_backbone = False, n_way = 5, n_support = 5, linear = False): 
-    ###############################################################################################
-    # load pretrained model on miniImageNet
-    pretrained_model = model_dict[params.model](flatten = flatten)
-    
-    state_temp = copy.deepcopy(state_in)
-
-    state_keys = list(state_temp.keys())
-    for _, key in enumerate(state_keys):
-        if "feature." in key:
-            newkey = key.replace("feature.","")  # an architecture model has attribute 'feature', load architecture feature to backbone by casting name from 'feature.trunk.xx' to 'trunk.xx'  
-            state_temp[newkey] = state_temp.pop(key)
-        else:
-            state_temp.pop(key)
-
-    model = model.to(device)
-    pretrained_model.load_state_dict(state_temp)
-
-    pretrained_model.to(device)
-    n_query = x.size(1) - n_support
-    x = x.to(device)
-    x_var = Variable(x)
-
-    support_size = n_way * n_support 
-    
-    y_a_i = Variable( torch.from_numpy( np.repeat(range( n_way ), n_support ) )).to(device) # (25,)
-
-    #x_b_i = x_var[:, n_support:,:,:,:].contiguous().view( n_way* n_query,   *x.size()[2:]) 
-    #x_a_i = x_var[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
-    x_inn = x_var.view(n_way* (n_support + n_query), *x.size()[2:])
-    
-    if flatten == True:
-
-      #inn = torch.cat((x_a_i.to(device), x_b_i.to(device)), dim = 0)
-      output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, -1).detach()
-      
-    else:
-      output_all = pretrained_model(x_inn).view(n_way, n_support + n_query, pretrained_model.final_feat_dim[0], pretrained_model.final_feat_dim[1], pretrained_model.final_feat_dim[2]).detach()
-     
-      
-
-    #output_all = torch.cat((output_support, output_query), dim =1)
-
-
-
-    model.n_query = n_query
-    
-    if ds == True:
-      if linear == True:
-        model.train()
-        score2 = model.set_forward_adaptation_full(output_all, is_feature = True)
-      model.eval()
-      score = model.set_forward(output_all, is_feature = True, domain_shift = True)
-      model.train()
-      
-    else:
-      if linear == True:
-        model.train()
-        score2 = model.set_forward_adaptation(output_all, is_feature = True)
-      model.eval()
-      score = model.set_forward(x_var)
-      model.train()
-      
-      
-       
-
-    #m1 = torch.unsqueeze(torch.mean(scores, dim = 1), 1) ##predict each query example independently
-    #s1 = torch.unsqueeze(torch.std(scores, dim = 1), 1)
-
-    #scores  = (scores - m1) / s1
-
-    #m1_2 = torch.unsqueeze(torch.mean(scores2, dim = 1), 1)
-    #s1_2 = torch.unsqueeze(torch.std(scores2, dim = 1), 1)
-
-    #scores2  = (scores2 - m1_2) / s1_2
-    
-    #scores = (scores + scores2)/2
-
-    score = torch.nn.functional.softmax(score, dim = 1)
-    if linear == True:
-      score2 = torch.nn.functional.softmax(score2, dim = 1) /2
-      out = score + score2
-    else:
-      out = score
-    
-    
-    return out
 
 
 
@@ -645,6 +433,10 @@ if __name__=='__main__':
       model           = GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'sbmtl':
         model           = sbmtl.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'sbmtl_gnn':
+        model           = sbmtl_gnn.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'sbmtl_proto':
+        model           = sbmtl_proto.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
@@ -725,7 +517,7 @@ if __name__=='__main__':
                       state.pop(key)
               model.classifier = Classifier(model.feat_dim, n_way)
               model.batchnorm = nn.BatchNorm1d(5, track_running_stats=False)
-              if params.method == "sbmtl":
+              if "sbmtl" in params.method:
                   model.instantiate_baseline(params)
               model.load_state_dict(state)
               model.to(device)
@@ -879,7 +671,7 @@ if __name__=='__main__':
         scores = nofinetune(liz_x[0], y, model, state, flatten = False, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
       elif params.method == "baseline":
         scores = finetune_linear(liz_x, y, state_in = state_b, linear = True, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
-      elif params.method in ["gnnnet", "sbmtl"]:
+      elif params.method in ["gnnnet", "sbmtl","sbmtl_gnn", "sbmtl_proto"]:
         scores = finetune_classify(liz_x,y, model, state, ds = ds, save_it = params.save_iter, n_query = 15, pretrained_dataset=pretrained_dataset, freeze_backbone=freeze_backbone, **few_shot_params)
 
       n_way = 5

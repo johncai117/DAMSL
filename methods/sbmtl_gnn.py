@@ -321,7 +321,7 @@ class GnnNet(MetaTemplate):
     
     scores = self.forward_gnn(z_stack)
     return scores
-    return scores
+    
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
