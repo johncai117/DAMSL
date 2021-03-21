@@ -20,8 +20,8 @@ from methods.protonet import ProtoNet
 from methods import damsl_v1
 from methods import damsl_v1_proto
 from methods import damsl_v2
-from methods import sbmtl_gnn
-from methods import sbmtl_proto
+from methods import damsl_v2_gnn
+from methods import damsl_v2_proto
 from methods.protonet import euclidean_dist
 
 configs.save_dir = 'logs_final_train' ##override
@@ -174,14 +174,14 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
         z = model.fc2(final.view(-1, *final.size()[2:]))
         z = z.view(model.n_way, -1, z.size(1))
-      elif params.method == "sbmtl_gnn":
+      elif params.method == "damsl_v2_gnn":
         z = model.fc2(output_all.view(-1, *output_all.size()[2:]))
         z = z.view(model.n_way, -1, z.size(1))
-      elif params.method == "sbmtl_proto":
+      elif params.method == "damsl_v2_proto":
         final = classifier(output_all)
         final = torch.transpose(model.batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
-        z = model.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
-        z = z.view(model.n_way, -1, z.size(1))
+        #z = model.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
+        #z = z.view(model.n_way, -1, z.size(1))
     else:
       output_all = pretrained_model(x_b_i.to(device)).detach()
       final = classifier(output_all)
@@ -248,16 +248,20 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
             final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
             z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
             z_b = z_b.view(model.n_way, -1, z_b.size(1))
-          elif params.method == "sbmtl_gnn":
+          elif params.method == "damsl_v2_gnn":
             z_b = model.fc2(output_all_b.view(-1, *output_all_b.size()[2:]))
             z_b = z_b.view(n_way, -1, z_b.size(1))
-          elif params.method == "sbmtl_proto":
+          elif params.method == "damsl_v2_proto":
             final_b = classifier_baseline(output_all_b).detach()
             final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
-            z_b = model.fc_deep(final_b.view(-1, *final_b.size()[2:]))
-            z_b = z_b.view(n_way, -1, z_b.size(1))
+            #z_b = model.fc_deep(final_b.view(-1, *final_b.size()[2:]))
+            #z_b = z_b.view(n_way, -1, z_b.size(1))
 
-            z = torch.cat([z, z_b], dim = 2)
+            #z = torch.cat([z, z_b], dim = 2)
+
+            final = torch.cat([final, final_b], dim = 2)
+            z = model.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
+            z = z.view(n_way, -1, z.size(1))
     
             z_support = z[:,:model.n_support,:].contiguous()
             z_query = z[:,model.n_support:,:].contiguous()
@@ -337,9 +341,9 @@ if __name__=='__main__':
   elif params.method == 'damsl_v2':
         model           = damsl_v2.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'damsl_v2_gnn':
-        model           = sbmtl_gnn.GnnNet( model_dict[params.model], **few_shot_params )
-  elif params.method == 'damsl_v2_proto':
-        model           = sbmtl_proto.GnnNet( model_dict[params.model], **few_shot_params )
+        model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'damsl_v2_proto': ## proper name damsl_v2_proto
+        model           = damsl_v2_proto.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
@@ -469,6 +473,7 @@ if __name__=='__main__':
   ##################################################################
   pretrained_dataset = "miniImageNet"
 
+  ### Loading datasets below
   
   if params.test_dataset == "ISIC":
     print ("Loading ISIC")

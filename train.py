@@ -7,8 +7,11 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from methods import sbmtl_gnn 
-from methods import sbmtl_proto
+from methods import damsl_v1
+from methods import damsl_v1_proto
+from methods import damsl_v2
+from methods import damsl_v2_gnn
+from methods import damsl_v2_proto
 from methods import gnnnet
 from methods import gnn
 
@@ -30,9 +33,9 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
         for _, param in model.feature_baseline.named_parameters():
             param.requires_grad = False  
 
-    if optimization == 'SGD':
+    if params.optimization == 'SGD':
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
-    elif optimization == "Adam":
+    elif params.optimization == "Adam":
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
     else:
        raise ValueError('Unknown optimization, please define by yourself')     
@@ -111,7 +114,7 @@ if __name__=='__main__':
         #print(device)
         model           = BaselineTrain( model_dict[params.model], params.num_classes)
 
-    elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "sbmtl_gnn", "sbmtl_proto"]:
+    elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "damsl_v2_gnn", "sbmtl_proto"] or "damsl" in params.method:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -145,12 +148,16 @@ if __name__=='__main__':
             model           = MetaOptNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'sbmtl':
-            model           = sbmtl.GnnNet( model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'sbmtl_gnn':
-            model           = sbmtl_gnn.GnnNet( model_dict[params.model], **train_few_shot_params)
-        elif params.method == 'sbmtl_proto':
-            model           = sbmtl_proto.GnnNet( model_dict[params.model], **train_few_shot_params)
+        elif params.method == 'damsl_v1':
+        model           = damsl_v1.GnnNet( model_dict[params.model], **few_shot_params )
+        elif params.method == 'damsl_v1_proto':
+            model           = damsl_v1_proto.GnnNet( model_dict[params.model], **few_shot_params )
+        elif params.method == 'damsl_v2':
+            model           = damsl_v2.GnnNet( model_dict[params.model], **few_shot_params )
+        elif params.method == 'damsl_v2_gnn':
+            model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **few_shot_params )
+        elif params.method == 'damsl_v2_proto': ##remember to rename this
+            model           = damsl_v2_proto.GnnNet( model_dict[params.model], **few_shot_params )
        
        
     else:
