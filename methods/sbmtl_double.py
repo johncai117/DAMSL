@@ -101,7 +101,7 @@ class GnnNet(MetaTemplate):
               
       baseline_model.feature.load_state_dict(state)  
       return baseline_model.feature
-    self.feature_baseline = copy.deepcopy(load_baseline(400))
+    self.feature_baseline = copy.deepcopy(load_baseline(400)) ##important to laod feature baseline
     self.feature_baseline2 = copy.deepcopy(load_baseline(450))
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.batchnorm2.to(device)

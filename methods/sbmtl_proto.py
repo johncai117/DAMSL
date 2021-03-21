@@ -49,6 +49,7 @@ class GnnNet(MetaTemplate):
 
     # metric function
     self.fc2 = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    self.fc_deep = nn.Sequential(nn.Linear(self.n_way*2, 32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32)) ## deep NN
     
     #self.gnn = GNN_nl(128 + self.n_way, 64, self.n_way)
     self.method = 'GnnNet'
@@ -77,7 +78,7 @@ class GnnNet(MetaTemplate):
     self.fc2.to(device)
     self.batchnorm.to(device)
     self.classifier.to(device)
-    
+    self.fc_deep.to(device)
     self.support_label = self.support_label.to(device)
     return self
 
@@ -110,14 +111,13 @@ class GnnNet(MetaTemplate):
               
       baseline_model.feature.load_state_dict(state)  
       return baseline_model.feature
-    self.fc_deep = nn.Sequential(nn.Linear(self.n_way, 32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32)) ## deep NN
+    
     self.feature_baseline = copy.deepcopy(load_baseline(400))
     self.feature_baseline2 = copy.deepcopy(load_baseline(450))
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
     self.feature_baseline2.to(device)
-    self.fc_deep.to(device)
 
   
 
@@ -324,14 +324,11 @@ class GnnNet(MetaTemplate):
     ### feed into fc and gnn
 
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
+    
+    final = torch.cat([final, final_b], dim = 2)
 
     z = self.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
     z = z.view(self.n_way, -1, z.size(1))
-
-    z_b = self.fc_deep(final_b.view(-1, *final_b.size()[2:]))
-    z_b = z_b.view(self.n_way, -1, z_b.size(1))
-
-    z = torch.cat([z, z_b], dim = 2)
     
     z_support = z[:,:self.n_support,:].contiguous()
     z_query = z[:,self.n_support:,:].contiguous()
