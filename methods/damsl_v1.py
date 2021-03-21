@@ -14,8 +14,6 @@ from utils import device
 from methods.baselinetrain import BaselineTrain
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 
-
-
 class Classifier(nn.Module):
     def __init__(self, dim, n_way):
         super(Classifier, self).__init__()
@@ -46,8 +44,6 @@ class GnnNet(MetaTemplate):
     self.classifier = Classifier(self.feat_dim, self.n_way)
     self.batchnorm = nn.BatchNorm1d(5, track_running_stats=False)
         
-    
-    
     # number of layers to allow to adapt during fine-tuning
     self.num_FT_block = 2 ##default
     self.ft_epoch = 3

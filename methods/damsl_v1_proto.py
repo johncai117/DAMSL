@@ -52,6 +52,7 @@ class GnnNet(MetaTemplate):
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
     self.fc2 = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False)) 
     self.fc3 = nn.Sequential(nn.Linear(n_way, 32), nn.BatchNorm1d(32, track_running_stats=False)) 
+    self.fc_deep = nn.Sequential(nn.Linear(self.n_way*2, 32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32)) ## deep NN
     self.gnn = GNN_nl(64 + self.n_way, 32, self.n_way)
     self.method = 'GnnNet'
 
@@ -114,12 +115,12 @@ class GnnNet(MetaTemplate):
     baseline_model.feature.load_state_dict(state)  
     self.feature_baseline = copy.deepcopy(baseline_model.feature)
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
-    self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
-    self.fc_deep = nn.Sequential(nn.Linear(self.n_way, 32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32), nn.ReLU(), nn.BatchNorm1d(32, track_running_stats=False), nn.Linear(32,32)) ## deep NN
+    #self.fc_new = nn.Sequential(nn.Linear(10, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
+    
     del baseline_model
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)
-    self.fc_new.to(device)
+    #self.fc_new.to(device)
     self.fc_deep.to(device)
 
   def instantiate_baseline2(self, params):
@@ -370,13 +371,10 @@ class GnnNet(MetaTemplate):
 
     assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
 
+    final = torch.cat([final, final_b], dim = 2)
+
     z = self.fc_deep(final.view(-1, *final.size()[2:])) ## use fc deep for deep embedding network
     z = z.view(self.n_way, -1, z.size(1))
-
-    z_b = self.fc_deep(final_b.view(-1, *final_b.size()[2:]))
-    z_b = z_b.view(self.n_way, -1, z_b.size(1))
-
-    z = torch.cat([z, z_b], dim = 2)
     
     z_support = z[:,:self.n_support,:].contiguous()
     z_query = z[:,self.n_support:,:].contiguous()
@@ -387,11 +385,6 @@ class GnnNet(MetaTemplate):
     dists = euclidean_dist(z_query, z_proto)
     scores = -dists
 
-    #z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
-    
-    #assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    
-    #scores = self.forward_gnn(z_stack)
     return scores
 
   def forward_gnn(self, zs):
