@@ -23,7 +23,6 @@ from methods.protonet import ProtoNet
 from io_utils import model_dict, parse_args, get_resume_file, get_assigned_file
 from datasets import miniImageNet_few_shot, DTD_few_shot
 from utils import device
-configs.save_dir = 'logs_final_train' ##override
 
 def train(base_loader, model, optimization, start_epoch, stop_epoch, params):  
     for _, param in model.named_parameters():
@@ -149,7 +148,7 @@ if __name__=='__main__':
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'damsl_v1':
-        model           = damsl_v1.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v1.GnnNet( model_dict[params.model], **few_shot_params )
         elif params.method == 'damsl_v1_proto':
             model           = damsl_v1_proto.GnnNet( model_dict[params.model], **few_shot_params )
         elif params.method == 'damsl_v2':
@@ -173,6 +172,11 @@ if __name__=='__main__':
     params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, params.dataset, params.model, params.method)
     if params.train_aug:
         params.checkpoint_dir += '_aug'
+    
+    if params.optimization == "Adam":
+        params.checkpoint_dir += "Adam"
+
+    print("Optimizer: ",params.optimization)
 
     if not params.method  in ['baseline', 'baseline++']: 
         params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
@@ -189,31 +193,31 @@ if __name__=='__main__':
 
     print(params.checkpoint_dir)
   
-    if params.start_epoch > 401:
+    if params.start_epoch >= 401:
     
-      resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
-      if resume_file is not None:
-          tmp = torch.load(resume_file)
-          
-          state = tmp['state']
-          state_keys = list(state.keys())
-          for _, key in enumerate(state_keys):
-              if "feature2." in key:
-                  state.pop(key)
-              if "feature3." in key:
-                  state.pop(key)
+        resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
+        if resume_file is not None:
+            tmp = torch.load(resume_file)
+            
+            state = tmp['state']
+            state_keys = list(state.keys())
+            for _, key in enumerate(state_keys):
+                if "feature2." in key:
+                    state.pop(key)
+                if "feature3." in key:
+                    state.pop(key)
           
       
       
-    if params.start_epoch == 401 and "sbmtl" in params.method:
-        #model.load_state_dict(state)
-        model.instantiate_baseline(params)
-    elif params.start_epoch > 401 and "sbmtl" in params.method:
-    
-        model.instantiate_baseline(params)
-        model.load_state_dict(state)
-    else:
-        model.load_state_dict(state)
+        if params.start_epoch == 401 and "damsl" in params.method:
+            #model.load_state_dict(state)
+            model.instantiate_baseline(params)
+        elif params.start_epoch > 401 and "damsl" in params.method:
+
+            model.instantiate_baseline(params)
+            model.load_state_dict(state)
+        else:
+            model.load_state_dict(state)
 
 
 
