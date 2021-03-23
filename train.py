@@ -173,8 +173,8 @@ if __name__=='__main__':
     if params.train_aug:
         params.checkpoint_dir += '_aug'
     
-    if params.optimization == "Adam":
-        params.checkpoint_dir += "Adam"
+    if params.optimization != "SGD":
+        params.checkpoint_dir += "_" + params.optimization
 
     print("Optimizer: ",params.optimization)
 
