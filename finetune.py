@@ -24,7 +24,7 @@ from methods import damsl_v2_gnn
 from methods import damsl_v2_proto
 from methods.protonet import euclidean_dist
 
-configs.save_dir = 'logs_final_train' ##override
+#configs.save_dir = 'logs_final_train' ##override
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
 
 from utils import *
@@ -593,7 +593,7 @@ if __name__=='__main__':
       top1_correct = np.sum(topk_ind[:,0] == y_query)
       correct_this, count_this = float(top1_correct), len(y_query)
       acc_all.append((correct_this/ count_this *100))
-      if idx % 100 == 0:
+      if idx % 1 == 0:
         print(idx)
         print(correct_this/ count_this *100)
         #print(sum(acc_all) / len(acc_all))

@@ -73,13 +73,15 @@ class GnnNet(MetaTemplate):
     return self
 
   def instantiate_baseline(self, params):
-    def load_baseline(num):
+    def load_baseline(num, Adam):
       baseline_model  = BaselineTrain( backbone.ResNet10, 64)
       save_dir =  configs.save_dir
       self.params = copy.deepcopy(params)
       self.params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(save_dir, "miniImageNet", "ResNet10", "baseline")
       if self.params.train_aug:
           self.params.checkpoint_dir += '_aug'
+      if Adam:
+          self.params.checkpoint_dir += '_Adam'
       
       resume_file2 = get_assigned_file(self.params.checkpoint_dir, 400)
       if resume_file2 is not None:
@@ -101,8 +103,8 @@ class GnnNet(MetaTemplate):
               
       baseline_model.feature.load_state_dict(state)  
       return baseline_model.feature
-    self.feature_baseline = copy.deepcopy(load_baseline(400)) ##important to laod feature baseline
-    self.feature_baseline2 = copy.deepcopy(load_baseline(450))
+    self.feature_baseline = copy.deepcopy(load_baseline(400, True)) ##important to laod feature baseline
+    self.feature_baseline2 = copy.deepcopy(load_baseline(400, False))
     self.batchnorm2 = nn.BatchNorm1d(5, track_running_stats=False)
     self.batchnorm2.to(device)
     self.feature_baseline.to(device)

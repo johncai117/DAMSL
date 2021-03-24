@@ -17,7 +17,7 @@ Submission for ICCV 2021.
 ## Key Contributions
 
 * Achives state-of-the-art performance compared to previous methods.
-* First method to propose using pre-softmax classification scores as coordinates for a metric space.
+* First method to propose using pre-softmax classification scores as coordinates for a metric space. Unlocks a new direction for score-based performance boosting.
 * Provides a flexible framework to combine transfer-based and metric-based meta-learning methods.
 
 ## Datasets
@@ -58,7 +58,7 @@ The following datasets are used for this paper.
     Note that some rearrangement of the files is required in order to fit the format of the dataloader.
 
 
-## Additional Target Domains
+## Additional Target Domains used in this paper
 
 * CIFAR100
 * Caltech256
@@ -119,7 +119,9 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
   • *Example output:* 600 Test Acc = 98.78% +- 0.19%
  
  Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
- 
+
+ Replace the method argument with {damsl_v1, damsl_v2}.
+
 3. If there is an error in data loading in the next few steps below, it is most likely because of the num_workers argument - multi-threading large files may not work, especially at larger shots. 
  
    If error is encountered, do the following:
@@ -135,33 +137,18 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 ## Steps for Re-training and Testing
 
 
-1. Train supervised feature encoder on miniImageNet for 400 epochs
+1. Train supervised feature encoders on miniImageNet for 400 epochs
 
-    • *Standard supervised learning on miniImageNet*
+    • *Standard supervised learning on miniImageNet using SGD*
     ```bash
      python train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401
     ```
-2. Train GNN feature encoder on MiniImagenet for 5 and 20 shots for 400 epochs
-
-    • *GNN on miniImageNet for 5 shot*
-
+    • *Standard supervised learning on miniImageNet using Adam*
     ```bash
-     python train.py --dataset miniImageNet --model ResNet10  --method damsl_v2 --n_shot 5 --train_aug --start_epoch 0 --stop_epoch 401
-    ```
-    
-    • *GNN on miniImageNet for 20 shot*
-
-    ```bash
-     python train.py --dataset miniImageNet --model ResNet10  --method damsl_v2 --n_shot 20 --train_aug --start_epoch 0 --stop_epoch 401
+     python train.py --dataset miniImageNet --model ResNet10  --method baseline --train_aug --start_epoch 0 --stop_epoch 401 --optimizer Adam
     ```
 
-    • *GNN on miniImageNet for 50 shot*
-
-    ```bash
-     python train.py --dataset miniImageNet --model ResNet10  --method damsl_v2 --n_shot 50 --train_aug --start_epoch 0 --stop_epoch 401
-    ```
-
-3. Episodic Training of Score-based Meta Transfer-Learning on MiniImageNet for another 200 epochs
+2. Episodic Training of DAMSL_v2 module on MiniImageNet for another 200 epochs
 
     • *GNN on miniImageNet for 5 shot*
 
@@ -180,11 +167,13 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
      python train.py --dataset miniImageNet --model ResNet10  --method damsl_v2 --n_shot 50 --train_aug --start_epoch 401 --stop_epoch 601 --fine_tune
     ```
     
-6. Test
+    Note: if we are using damsl_v1 instead, we would need to train the GNN feature encoder as well.
+
+3. Test
 
     Follow step 2 and 3 in the "Testing using Pre-trained Models" section.
     
-## Steps for Other Results
+## Steps for Other Results and Ablation Studies
 
 1. No Data Augmentation
 
@@ -192,10 +181,10 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
 2. Ablation Study: Linear Meta Transfer-Learning
 
-    Same arguments, but run the finetune_ablation.py file instead.
+    Add argument "--ablation linear"
 
     ```bash
-     python finetune_ablation.py --model ResNet10 --method damsl_v1  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 
+     python finetune.py --model ResNet10 --method damsl_v1  --train_aug --n_shot 5 --save_iter 600 --fine_tune_epoch 5 --test_dataset CropDisease --gen_examples 17 --ablation linear
     ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
@@ -207,6 +196,12 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
     ```
 
     Replace the test_dataset argument with {CropDisease, EuroSat, ISIC, ChestX}.
+
+4. Score-based Prototypical Networks
+
+    Will need to retrain the model between 401 and 601 epochs and then follow the same steps.
+
+    Models incldue: {damsl_v1_proto, damsl_v2_proto}
 
 
 ## References

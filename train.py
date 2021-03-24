@@ -72,9 +72,10 @@ if __name__=='__main__':
     print(params.method)
     if not params.start_epoch > 0:
       np.random.seed(10) #original was 10
-
+    
     image_size = 224
-    optimization = 'Adam'
+
+    optimization = params.optimization
 
     if params.method in ['baseline'] :
 
@@ -116,6 +117,7 @@ if __name__=='__main__':
     elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "damsl_v2_gnn", "sbmtl_proto"] or "damsl" in params.method:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
+    
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
 
         if params.dataset == "miniImageNet":
@@ -148,15 +150,15 @@ if __name__=='__main__':
         elif params.method == 'gnnnet':
             model           = GnnNet( model_dict[params.model], **train_few_shot_params)
         elif params.method == 'damsl_v1':
-            model           = damsl_v1.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v1.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v1_proto':
-            model           = damsl_v1_proto.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v1_proto.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2':
-            model           = damsl_v2.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v2.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2_gnn':
-            model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2_proto': ##remember to rename this
-            model           = damsl_v2_proto.GnnNet( model_dict[params.model], **few_shot_params )
+            model           = damsl_v2_proto.GnnNet( model_dict[params.model], **train_few_shot_params )
        
        
     else:
@@ -193,7 +195,7 @@ if __name__=='__main__':
 
     print(params.checkpoint_dir)
   
-    if params.start_epoch >= 401:
+    if params.start_epoch > 401:
     
         resume_file = get_assigned_file(params.checkpoint_dir, params.start_epoch -1)
         if resume_file is not None:
@@ -209,15 +211,15 @@ if __name__=='__main__':
           
       
       
-        if params.start_epoch == 401 and "damsl" in params.method:
-            #model.load_state_dict(state)
-            model.instantiate_baseline(params)
-        elif params.start_epoch > 401 and "damsl" in params.method:
+    if params.start_epoch == 401 and "damsl" in params.method:
+        #model.load_state_dict(state)
+        model.instantiate_baseline(params)
+    elif params.start_epoch > 401 and "damsl" in params.method:
 
-            model.instantiate_baseline(params)
-            model.load_state_dict(state)
-        else:
-            model.load_state_dict(state)
+        model.instantiate_baseline(params)
+        model.load_state_dict(state)
+    elif params.start_epoch > 0:
+        model.load_state_dict(state)
 
 
 
