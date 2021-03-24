@@ -71,6 +71,14 @@ The following datasets are used for this paper.
 ### Codebase
 The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark [1] and https://github.com/hytseng0509/CrossDomainFewShot. [2]
 
+### Dependencies
+
+The requirements.txt file is provided. Simply use:
+
+    ```bash
+     pip install -r requirements.txt
+    ```
+
 
 ## Steps for Loading Data   
 
@@ -89,10 +97,10 @@ The codebase is built on previous work by https://github.com/IBM/cdfsl-benchmark
 
 ## Steps for Testing using Pre-trained Models
 
-1. Download the pre-trained models from a link that you can find here: https://www.dropbox.com/s/f0hj68z2s5evo8b/logs_final.zip?dl=0
+1. Download the pre-trained models from a link that you can find here: "https://www.dropbox.com/s/v5n31byzdbuwi24/logs_final_upload.zip?dl=0"
 
     ```bash
-     wget https://www.dropbox.com/s/f0hj68z2s5evo8b/logs_final.zip?dl=1
+     wget https://www.dropbox.com/s/v5n31byzdbuwi24/logs_final_upload.zip?dl=1
     ```
  
     Unzip the file and place it in the main directory of the project

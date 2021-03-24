@@ -396,7 +396,7 @@ if __name__=='__main__':
 
       if not params.method in ['baseline'] :
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-
+      print(checkpoint_dir)
       if not params.method in ['baseline'] : 
           if params.save_iter != -1:
               modelfile   = get_assigned_file(checkpoint_dir,params.save_iter)
@@ -428,7 +428,7 @@ if __name__=='__main__':
                   model.instantiate_baseline(params)
               model.load_state_dict(state)
               model.to(device)
-      print(checkpoint_dir)
+     
   elif params.method == "all":
         
                 

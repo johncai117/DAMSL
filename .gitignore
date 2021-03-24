@@ -50,3 +50,6 @@ cifar-100-python.tar.gz
 cifar-100-python/
 256_ObjectCategories/
 logs_final_upload/
+logs_final_upload.zip
+logs_final_upload_old/
+logs_final_upload_old.zip
