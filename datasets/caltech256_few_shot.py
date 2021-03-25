@@ -20,23 +20,27 @@ class SimpleDataset:
         self.transform = transform
         self.target_transform = target_transform
 
+        self.meta = {}
 
-        self.d = ImageFolder("")
-        #for i, (data, label) in enumerate(d):
-        #    self.meta['image_names'].append(data)
-        #    self.meta['image_labels'].append(label)      
+        self.meta['image_names'] = []
+        self.meta['image_labels'] = []
+
+        d = ImageFolder(Caltech_path)
+        for i, (data, label) in enumerate(d):
+            self.meta['image_names'].append(data)
+            self.meta['image_labels'].append(label)      
 
     def __getitem__(self, i):
 
-        #img = self.transform(self.meta['image_names'][i])
-        #target = self.target_transform(self.meta['image_labels'][i])
-        img, target = self.d[i]
+        img = self.transform(self.meta['image_names'][i])
+        target = self.target_transform(self.meta['image_labels'][i])
+        #img, target = self.d[i]
 
         return img, target
 
     def __len__(self):
-        #return len(self.meta['image_names'])
-        return len(self.d)
+        return len(self.meta['image_names'])
+        #return len(self.d)
 
 
 class SetDataset:

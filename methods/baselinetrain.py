@@ -13,7 +13,7 @@ class BaselineTrain(nn.Module):
         self.feature    = model_func()
 
         if loss_type == 'softmax':
-            self.classifier = nn.Linear(self.feature.final_feat_dim, 200)
+            self.classifier = nn.Linear(self.feature.final_feat_dim, num_class)
             self.classifier.bias.data.fill_(0)
         elif loss_type == 'dist': #Baseline ++
             self.classifier = backbone.distLinear(self.feature.final_feat_dim, num_class)
