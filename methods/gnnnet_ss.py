@@ -21,10 +21,13 @@ class Classifier(nn.Module):
         x = self.fc(x)
         return x
 
-class GnnNet(MetaTemplate):
+class GnnNet_ss(MetaTemplate):
+  '''
+  Self-Supervised version of GnnNet
+  '''
   maml=False
-  def __init__(self, model_func,  n_way, n_support):
-    super(GnnNet, self).__init__(model_func, n_way, n_support)
+  def __init__(self, model_func,  n_way, n_support, n_query):
+    super(GnnNet_ss, self).__init__(model_func, n_way, n_support, n_query)
 
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
@@ -47,7 +50,8 @@ class GnnNet(MetaTemplate):
     # fix label for training the metric function   1*nw(1 + ns)*nw
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
-    support_label = torch.cat([support_label, torch.full((self.n_way, 1, n_way),1 / (self.n_way * n_way)], dim=1)
+    query_uniform = torch.full((self.n_way, n_query, n_way), 1 / (self.n_way * n_way)
+    support_label = torch.cat([support_label, query_uniform ], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
 
   def cuda(self):
@@ -208,7 +212,7 @@ class GnnNet(MetaTemplate):
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
-    nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
+    nodes = [torch.cat([zs, self.support_label.to(device)], dim=2)
     scores = self.gnn(nodes)
 
     # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
