@@ -162,5 +162,6 @@ class GNN_nl(nn.Module):
 
     Wl=self.w_comp_last(x, W_init)
     out = self.layer_last([Wl, x])[1]
+    
 
     return out

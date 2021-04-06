@@ -10,6 +10,7 @@ import glob
 from methods import damsl_v1
 from methods import damsl_v1_proto
 from methods import damsl_v2
+from methods import damsl_v2_ss ##change back later
 from methods import damsl_v2_gnn
 from methods import damsl_v2_proto
 from methods import gnnnet
@@ -118,6 +119,9 @@ if __name__=='__main__':
 
     elif params.method in ['sbmtl','maml','relationnet','protonet', 'gnnnet', 'metaoptnet', "damsl_v2_gnn", "sbmtl_proto"] or "damsl" in params.method:
         n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small
+        if params.method == "damsl_v2_ss":
+            n_query = 15
+        
         train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
     
         test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
@@ -157,6 +161,9 @@ if __name__=='__main__':
             model           = damsl_v1_proto.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2':
             model           = damsl_v2.GnnNet( model_dict[params.model], **train_few_shot_params )
+        elif params.method == 'damsl_v2_ss':
+            model           = damsl_v2_ss.GnnNet( model_dict[params.model], **train_few_shot_params )
+            model.n_query = 15
         elif params.method == 'damsl_v2_gnn':
             model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2_proto': ##remember to rename this

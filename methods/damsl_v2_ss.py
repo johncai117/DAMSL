@@ -35,6 +35,7 @@ class GnnNet(MetaTemplate):
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
+    self.n_query = 15 ## fix this
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
@@ -58,7 +59,8 @@ class GnnNet(MetaTemplate):
     # fix label for training the metric function   1*nw(1 + ns)*nw
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
-    support_label = torch.cat([support_label, torch.zeros(self.n_way, 1, n_way)], dim=1)
+    query_uniform = torch.full((self.n_way, self.n_query, n_way), 1 /  n_way)
+    support_label = torch.cat([support_label, query_uniform ], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
 
   def cuda(self):
@@ -314,7 +316,7 @@ class GnnNet(MetaTemplate):
     
     ### feed into fc and gnn
 
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
+    #assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
 
     z = self.fc2(final.view(-1, *final.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
@@ -323,27 +325,29 @@ class GnnNet(MetaTemplate):
     z_b = z_b.view(self.n_way, -1, z_b.size(1))
 
     z = torch.cat([z, z_b], dim = 2)
-
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
+    #print(z.shape)
+    z_ss = z.view(1, -1, z.size(2))
+    #print(z_ss.shape)
     
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
-    
-    scores = self.forward_gnn(z_stack)
+    scores = self.forward_gnn(z_ss)
     return scores
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
-    nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
+    #print("support lab")
+    #print(self.support_label.shape)
+    nodes = torch.cat([zs, self.support_label.to(device)], dim = 2)
+    #print(nodes.shape)
     scores = self.gnn(nodes)
-    print(scores.shape)
+    #print(scores.shape)
 
-    # n_q * n_way(n_s + 1) * n_way -> (n_way * n_q) * n_way
-    scores = scores.view(self.n_query, self.n_way, self.n_support + 1, self.n_way)
-    print(scores.shape)
+
+    scores = scores.view(self.n_way,self.n_support + self.n_query, self.n_way)
+    #print(scores.shape)
     
-    scores = scores[:, :, -1].permute(1, 0, 2).contiguous().view(-1, self.n_way)
-    print(scores.shape)
-    print(hello)
+    scores = scores[:, self.n_support:, :].contiguous().view(-1, self.n_way)
+    #print(scores.shape)
+    #print(hello)
 
     return scores
 
