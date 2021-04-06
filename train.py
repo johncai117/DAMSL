@@ -34,7 +34,7 @@ def train(base_loader, model, optimization, start_epoch, stop_epoch, params):
             param.requires_grad = False  
 
     if params.optimization == 'SGD':
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = 0.01, momentum = 0.9, weight_decay = 0.00005 )
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr = 0.1, momentum = 0.9 )
     elif params.optimization == "Adam":
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
     else:
