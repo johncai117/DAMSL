@@ -22,6 +22,7 @@ from methods import damsl_v1_proto
 from methods import damsl_v2
 from methods import damsl_v2_gnn
 from methods import damsl_v2_proto
+from methods import damsl_v2_ss
 from methods.protonet import euclidean_dist
 
 #configs.save_dir = 'logs_final_train' ##override
@@ -168,7 +169,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     if not params.ablation == "linear":
       output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-      if params.method == "damsl_v1" or params.method == "damsl_v2" :
+      if params.method == "damsl_v1" or params.method == "damsl_v2" or params.method == "damsl_v2_ss":
         final = classifier(output_all)
         batchnorm = model.batchnorm
         final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
@@ -243,7 +244,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         if not params.ablation == "linear":
 
           output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-          if params.method == "damsl_v1" or params.method == "damsl_v2" :
+          if params.method == "damsl_v1" or params.method == "damsl_v2" or params.method == "damsl_v2_ss":
             final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
             final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
             z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
@@ -299,9 +300,14 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         z = z.view(model.n_way, -1, z.size(1))
         #z = torch.cat([z, z_b], dim = 2) ##concatenate
 
-    z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+    if not params.method == "damsl_v2_ss":
+      #z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+      #score = model.forward_gnn(z_stack)
+      model.start_ss()
+      score = model.forward_gnn_ss(z)
+    else:
+      score = model.forward_gnn_ss(z)
 
-    score = model.forward_gnn(z_stack)
     score = torch.nn.functional.softmax(score, dim = 1).detach()
 
     return score
@@ -344,6 +350,8 @@ if __name__=='__main__':
         model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'damsl_v2_proto': ## proper name damsl_v2_proto
         model           = damsl_v2_proto.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'damsl_v2_ss': ## proper name damsl_v2_proto
+        model           = damsl_v2_ss.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
