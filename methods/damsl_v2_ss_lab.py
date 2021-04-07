@@ -35,6 +35,7 @@ class GnnNet(MetaTemplate):
     # loss function
     self.loss_fn = nn.CrossEntropyLoss()
     self.first = True
+    
 
     # metric function
     self.fc = nn.Sequential(nn.Linear(self.feat_dim, 64), nn.BatchNorm1d(64, track_running_stats=False)) 
@@ -81,13 +82,22 @@ class GnnNet(MetaTemplate):
     support_label = torch.cat([support_label, query_uniform ], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
   
+  def original_lab(self):# fix label for training the metric function   1*nw(1 + ns)*nw
+    support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
+    support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
+    support_label = torch.cat([support_label, torch.zeros(self.n_way, 1, self.n_way)], dim=1)
+    self.support_label = support_label.view(1, -1, self.n_way)
+
   def load_pseudo_support(self, pseudo_support, pseudo_support_idx):
     ## pseudo_support has to be a 
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
     query_uniform = torch.full((self.n_way* self.n_query, self.n_way), 1 /  self.n_way)
     for idx, val in zip(pseudo_support_idx, pseudo_support):
-      query_uniform[idx] = val ## replace values with the pseudo support values
+      temp = torch.zeros(self.n_way)
+      temp[val] = 1
+      query_uniform[idx] = temp  ## replace values
+    query_uniform = query_uniform.view(self.n_way, self.n_query, self.n_way)
     support_label = torch.cat([support_label, query_uniform ], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
 
@@ -253,6 +263,8 @@ class GnnNet(MetaTemplate):
 
     delta_opt_b = torch.optim.Adam(filter(lambda p: p.requires_grad, baseline_feat.parameters()), lr = 0.01)
     classifier_opt_b = torch.optim.Adam(classifier_baseline.parameters(), lr = 0.01)
+
+
     loss_fn = nn.CrossEntropyLoss().to(device) 
     if self.params.n_shot <= 20:
       total_epoch = 15
@@ -331,7 +343,7 @@ class GnnNet(MetaTemplate):
     
     ### feed into fc and gnn
 
-    assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
+    #assert(final.size(1) == self.n_support + 16) ##16 query samples in each batch
 
     z = self.fc2(final.view(-1, *final.size()[2:]))
     z = z.view(self.n_way, -1, z.size(1))
@@ -341,15 +353,36 @@ class GnnNet(MetaTemplate):
 
     z = torch.cat([z, z_b], dim = 2)
 
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
+    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+    self.original_lab()
+    score = self.forward_gnn(z_stack)
+    score = torch.nn.functional.softmax(score, dim = 1).detach()
+    max_val_tup = torch.max(score, 1)
+    argmax_val = max_val_tup[1]
+    max_val = max_val_tup[0]
+    max_val_idx = [(i, val) for i,val in enumerate(max_val)]
+    total_indices = []
+    for i in range(n_way): ##class balanced relabelling of query samples
+      offset = i * n_query
+      max_val_class = [(j, val) for j, val in max_val_idx if argmax_val[j] == i]
+      if len(max_val_class) > 5:
+        max_val_class.sort(key = lambda x:x[1], reverse = True)
+        max_val_class = max_val_class[:5]
+      total_indices.extend([j for j,val in max_val_class])
     
-    assert(z_stack[0].size(1) == self.n_way*(self.n_support + 1))
+    final_class = [argmax_val[idx].cpu().numpy() for idx in total_indices]
+    self.load_pseudo_support(final_class, total_indices)
+
+    new_score = self.forward_gnn_ss(z)
+    new_score = torch.nn.functional.softmax(new_score, dim = 1).detach()
     
-    scores = self.forward_gnn(z_stack)
-    return scores
+    return new_scores
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
+
+    #print(zs[0].shape)
+    #print(self.support_label.shape)
     nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
     scores = self.gnn(nodes)
 

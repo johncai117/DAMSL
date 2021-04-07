@@ -11,6 +11,7 @@ from methods import damsl_v1
 from methods import damsl_v1_proto
 from methods import damsl_v2
 from methods import damsl_v2_ss ##change back later
+from methods import damsl_v2_ss_lab ##change back later
 from methods import damsl_v2_gnn
 from methods import damsl_v2_proto
 from methods import gnnnet
@@ -164,6 +165,8 @@ if __name__=='__main__':
         elif params.method == 'damsl_v2_ss':
             model           = damsl_v2_ss.GnnNet( model_dict[params.model], **train_few_shot_params )
             model.n_query = 15
+        elif params.method == 'damsl_v2_ss_lab':
+            model           = damsl_v2_ss_lab.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2_gnn':
             model           = damsl_v2_gnn.GnnNet( model_dict[params.model], **train_few_shot_params )
         elif params.method == 'damsl_v2_proto': ##remember to rename this

@@ -306,7 +306,32 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
       model.start_ss()
       score = model.forward_gnn_ss(z)
     else:
-      score = model.forward_gnn_ss(z)
+      z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+      model.original_lab()
+      score = model.forward_gnn(z_stack)
+      score = torch.nn.functional.softmax(score, dim = 1).detach()
+      max_val_tup = torch.max(score, 1)
+      argmax_val = max_val_tup[1]
+      max_val = max_val_tup[0]
+      max_val_idx = [(i, val) for i,val in enumerate(max_val)]
+      total_indices = []
+      for i in range(n_way): ##class balanced relabelling of query samples
+        offset = i * n_query
+        max_val_class = [(j, val) for j, val in max_val_idx if argmax_val[j] == i]
+        if len(max_val_class) > 5:
+          max_val_class.sort(key = lambda x:x[1], reverse = True)
+          max_val_class = max_val_class[:5]
+        total_indices.extend([j for j,val in max_val_class])
+      
+      final_class = [argmax_val[idx].cpu().numpy() for idx in total_indices]
+      model.load_pseudo_support(final_class, total_indices)
+
+      new_score = model.forward_gnn_ss(z)
+      new_score = torch.nn.functional.softmax(new_score, dim = 1).detach()
+      return new_score
+
+    
+
 
     score = torch.nn.functional.softmax(score, dim = 1).detach()
 

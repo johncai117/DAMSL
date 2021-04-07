@@ -57,11 +57,9 @@ class GnnNet(MetaTemplate):
     self.num_FT_layers = -9
 
     # fix label for training the metric function   1*nw(1 + ns)*nw
-    self.n_query = 15 ## fix this
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
-    query_uniform = torch.full((self.n_way, self.n_query, n_way), 1 /  n_way)
-    support_label = torch.cat([support_label, query_uniform ], dim=1)
+    support_label = torch.cat([support_label, torch.zeros(self.n_way, 1, self.n_way)], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
 
   def cuda(self):
@@ -75,13 +73,31 @@ class GnnNet(MetaTemplate):
     self.support_label = self.support_label.to(device)
     return self
 
+  def start_ss(self):
+    self.n_query = 15 ## fix this
+    
+    support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
+    support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
+    query_uniform = torch.full((self.n_way, self.n_query, self.n_way), 1 /  self.n_way)
+    support_label = torch.cat([support_label, query_uniform ], dim=1)
+    self.support_label = support_label.view(1, -1, self.n_way)
+  
+  def original_lab(self):# fix label for training the metric function   1*nw(1 + ns)*nw
+    support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
+    support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
+    support_label = torch.cat([support_label, torch.zeros(self.n_way, 1, self.n_way)], dim=1)
+    self.support_label = support_label.view(1, -1, self.n_way)
+
   def load_pseudo_support(self, pseudo_support, pseudo_support_idx):
     ## pseudo_support has to be a 
     support_label = torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).unsqueeze(1)
     support_label = torch.zeros(self.n_way*self.n_support, self.n_way).scatter(1, support_label, 1).view(self.n_way, self.n_support, self.n_way)
-    query_uniform = torch.full((self.n_way* self.n_query, n_way), 1 /  n_way)
+    query_uniform = torch.full((self.n_way* self.n_query, self.n_way), 1 /  self.n_way)
     for idx, val in zip(pseudo_support_idx, pseudo_support):
-      query_uniform[idx] = val ## replace values
+      temp = torch.zeros(self.n_way)
+      temp[val] = 1
+      query_uniform[idx] = temp  ## replace values
+    query_uniform = query_uniform.view(self.n_way, self.n_query, self.n_way)
     support_label = torch.cat([support_label, query_uniform ], dim=1)
     self.support_label = support_label.view(1, -1, self.n_way)
 
@@ -343,6 +359,9 @@ class GnnNet(MetaTemplate):
 
   def forward_gnn(self, zs):
     # gnn inp: n_q * n_way(n_s + 1) * f
+
+    #print(zs[0].shape)
+    #print(self.support_label.shape)
     nodes = torch.cat([torch.cat([z, self.support_label.to(device)], dim=2) for z in zs], dim=0)
     scores = self.gnn(nodes)
 
@@ -357,12 +376,8 @@ class GnnNet(MetaTemplate):
     zs = z.view(1, -1, z.size(2)) ## just feed in z
     nodes = torch.cat([zs, self.support_label.to(device)], dim = 2)
     scores = self.gnn(nodes)
-
-
     scores = scores.view(self.n_way,self.n_support + self.n_query, self.n_way)
-    
     scores = scores[:, self.n_support:, :].contiguous().view(-1, self.n_way)
-
     return scores
 
   def set_forward_loss(self, x):

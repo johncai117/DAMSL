@@ -31,7 +31,7 @@ def parse_args(script):
     parser.add_argument('--parallel'   , action='store_true',  help='whether we want to use data parallelerism') 
     parser.add_argument('--change_FT_dir'   , default=-1, type=int,  help='change finetune directory to load from') 
     if script == 'train':
-        parser.add_argument('--optimization'   , default="SGD",  help='change optimization between options during training') 
+        parser.add_argument('--optimization'   , default="Adam",  help='change optimization between options during training') 
         parser.add_argument('--fine_tune'   , action='store_true',  help='fine tuning during training ') 
         parser.add_argument('--aug_episodes', action='store_true',      help='augmentation epsidoes during fine tuning ') 
         parser.add_argument('--maml_gnn', action='store_true',      help='augmentation epsidoes during fine tuning ') 
