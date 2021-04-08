@@ -353,7 +353,7 @@ class GnnNet(MetaTemplate):
 
     z = torch.cat([z, z_b], dim = 2)
 
-    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+    z_stack = [torch.cat([z[:, :self.n_support], z[:, self.n_support + i:self.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(self.n_query)]
     self.original_lab()
     score = self.forward_gnn(z_stack)
     score = torch.nn.functional.softmax(score, dim = 1).detach()
@@ -362,8 +362,8 @@ class GnnNet(MetaTemplate):
     max_val = max_val_tup[0]
     max_val_idx = [(i, val) for i,val in enumerate(max_val)]
     total_indices = []
-    for i in range(n_way): ##class balanced relabelling of query samples
-      offset = i * n_query
+    for i in range(self.n_way): ##class balanced relabelling of query samples
+      offset = i * self.n_query
       max_val_class = [(j, val) for j, val in max_val_idx if argmax_val[j] == i]
       if len(max_val_class) > 5:
         max_val_class.sort(key = lambda x:x[1], reverse = True)
@@ -373,8 +373,7 @@ class GnnNet(MetaTemplate):
     final_class = [argmax_val[idx].cpu().numpy() for idx in total_indices]
     self.load_pseudo_support(final_class, total_indices)
 
-    new_score = self.forward_gnn_ss(z)
-    new_score = torch.nn.functional.softmax(new_score, dim = 1).detach()
+    new_scores = self.forward_gnn_ss(z)
     
     return new_scores
 

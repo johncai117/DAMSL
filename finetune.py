@@ -22,6 +22,7 @@ from methods import damsl_v1_proto
 from methods import damsl_v2
 from methods import damsl_v2_gnn
 from methods import damsl_v2_proto
+from methods import damsl_v2_ss_lab
 from methods import damsl_v2_ss
 from methods.protonet import euclidean_dist
 
@@ -377,6 +378,8 @@ if __name__=='__main__':
         model           = damsl_v2_proto.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'damsl_v2_ss': ## proper name damsl_v2_proto
         model           = damsl_v2_ss.GnnNet( model_dict[params.model], **few_shot_params )
+  elif params.method == 'damsl_v2_ss_lab': ## proper name damsl_v2_proto
+        model           = damsl_v2_ss_lab.GnnNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **few_shot_params )
   elif params.method == 'relationnet':
