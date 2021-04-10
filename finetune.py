@@ -25,6 +25,7 @@ from methods import damsl_v2_proto
 from methods import damsl_v2_ss_lab
 from methods import damsl_v2_ss
 from methods.protonet import euclidean_dist
+from self_supervised_label import *
 
 #configs.save_dir = 'logs_final_train' ##override
 from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
@@ -311,20 +312,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
       model.original_lab()
       score = model.forward_gnn(z_stack)
       score = torch.nn.functional.softmax(score, dim = 1).detach()
-      max_val_tup = torch.max(score, 1)
-      argmax_val = max_val_tup[1]
-      max_val = max_val_tup[0]
-      max_val_idx = [(i, val) for i,val in enumerate(max_val)]
-      total_indices = []
-      for i in range(n_way): ##class balanced relabelling of query samples
-        offset = i * n_query
-        max_val_class = [(j, val) for j, val in max_val_idx if argmax_val[j] == i]
-        if len(max_val_class) > 5:
-          max_val_class.sort(key = lambda x:x[1], reverse = True)
-          max_val_class = max_val_class[:2]
-        total_indices.extend([j for j,val in max_val_class])
-      
-      final_class = [argmax_val[idx].cpu().numpy() for idx in total_indices]
+      final_class, total_indices = ss_lab_cb(score, n_way, n_query)
       model.load_pseudo_support(final_class, total_indices)
 
       new_score = model.forward_gnn_ss(z)
