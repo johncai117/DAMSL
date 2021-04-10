@@ -170,7 +170,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
 
     if not params.ablation == "linear":
       output_all = pretrained_model(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-      if params.method == "damsl_v1" or params.method == "damsl_v2" or params.method == "damsl_v2_ss":
+      if params.method == "damsl_v1" or params.method == "damsl_v2" or "damsl_v2_ss" in params.method:
         final = classifier(output_all)
         batchnorm = model.batchnorm
         final = torch.transpose(batchnorm(torch.transpose(final, 1,2)),1,2).contiguous()
@@ -245,7 +245,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         if not params.ablation == "linear":
 
           output_all_b = baseline_feat(x_inn.to(device)).view(n_way, n_support + n_query, -1).detach()
-          if params.method == "damsl_v1" or params.method == "damsl_v2" or params.method == "damsl_v2_ss":
+          if params.method == "damsl_v1" or params.method == "damsl_v2" or "damsl_v2_ss" in params.method:
             final_b = classifier_baseline(output_all_b).detach() ##initial baseline scores
             final_b = torch.transpose(model.batchnorm2(torch.transpose(final_b, 1,2)),1,2).contiguous()
             z_b = model.fc2(final_b.view(-1, *final_b.size()[2:]))
@@ -301,7 +301,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         z = z.view(model.n_way, -1, z.size(1))
         #z = torch.cat([z, z_b], dim = 2) ##concatenate
 
-    if not params.method == "damsl_v2_ss":
+    if not "damsl_v2_ss" in params.method:
       #z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
       #score = model.forward_gnn(z_stack)
       model.start_ss()
@@ -321,7 +321,7 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         max_val_class = [(j, val) for j, val in max_val_idx if argmax_val[j] == i]
         if len(max_val_class) > 5:
           max_val_class.sort(key = lambda x:x[1], reverse = True)
-          max_val_class = max_val_class[:5]
+          max_val_class = max_val_class[:2]
         total_indices.extend([j for j,val in max_val_class])
       
       final_class = [argmax_val[idx].cpu().numpy() for idx in total_indices]
@@ -431,6 +431,8 @@ if __name__=='__main__':
           checkpoint_dir += '_aug'
 
       if not params.method in ['baseline'] :
+          if params.optimization != "SGD":
+            checkpoint_dir += "_" + params.optimization
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
       print(checkpoint_dir)
       if not params.method in ['baseline'] : 
