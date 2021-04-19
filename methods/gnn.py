@@ -46,6 +46,36 @@ class Gconv(nn.Module):
     #if self.J == 1:
     #    x = torch.abs(x)
     x_size = x.size()
+    print(x_size)
+    x = x.contiguous()
+    x = x.view(-1, self.num_inputs)
+    x = self.fc(x) # has size (bs*N, num_outputs)
+
+    if self.bn_bool:
+      x = self.bn(x)
+    x = x.view(*x_size[:-1], self.num_outputs)
+    return W, x
+  
+
+class Gconv_semi(nn.Module):
+  maml = False
+  def __init__(self, nf_input, nf_output, J, bn_bool=True):
+    super(Gconv_semi, self).__init__()
+    self.J = J
+    self.num_inputs = J*nf_input
+    self.num_outputs = nf_output
+    self.fc = nn.Linear(self.num_inputs, self.num_outputs) if not self.maml else Linear_fw(self.num_inputs, self.num_outputs)
+
+    self.bn_bool = bn_bool
+    if self.bn_bool:
+      self.bn = nn.BatchNorm1d(self.num_outputs, track_running_stats=False) if not self.maml else BatchNorm1d_fw(self.num_outputs, track_running_stats=False)
+
+  def forward(self, input):
+    W = input[0]
+    x = gmul(input) # out has size (bs, N, num_inputs)
+    #if self.J == 1:
+    #    x = torch.abs(x)
+    x_size = x.size()
     x = x.contiguous()
     x = x.view(-1, self.num_inputs)
     x = self.fc(x) # has size (bs*N, num_outputs)
