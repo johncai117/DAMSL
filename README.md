@@ -1,12 +1,12 @@
-# DAMSL: Domain Agnostic Meta Score-based Learning for Cross-Domain Few-Shot Learning
+# DAMSL: Domain Agnostic Meta Score-based Learning
 
 ## Introduction
 
-Submission for ICCV 2021.
+Submission for CVPR 2021 L2ID Workshop.
 
 ### Abstract
 
-  While many deep learning methods have successfully tackled domain adaptation and few-shot learning separately, far fewer methods are able to tackle Cross-Domain Few-Shot Learning (CD-FSL).  We identify key problems in previous meta-learning methods over-fitting to the source domain, and previous transfer-learning methods overly relying on a fine-tuning process that does not utilize the structure of the support set. In this paper, we propose Domain Agnostic Meta Score-based Learning (DAMSL), a novel, versatile and highly effective solution that addresses the above problems to deliver significant out-performance over state-of-the-art methods. The core idea is that instead of directly using the scores from a fine-tuned feature encoder, we use these scores to create input coordinates for a domain independent metric space. A graph neural network is applied to learn an embedding and relation function over these coordinates, in order to process all information contained in the score distribution of the support set. Our proposed module is versatile and can be attached to refine any initial set of input scores over an episode. We test our model on both established CD-FSL benchmarks and new domains. From our extensive experiments across 5-shot, 20-shot and 50-shot, we show that our method overcomes the limitations of previous meta-learning and transfer-learning methods to deliver substantial improvements in accuracy across both smaller and larger domain shifts.
+  In this paper, we propose Domain Agnostic Meta Score-based Learning (DAMSL), a novel, versatile and highly effective solution that delivers significant out-performance over state-of-the-art methods for cross-domain few-shot learning. We identify key problems in previous meta-learning methods over-fitting to the source domain, and previous transfer-learning methods under-utilizing the structure of the support set.  The core idea behind our method is that instead of directly using the scores from a fine-tuned feature encoder, we use these scores to create input coordinates for a domain agnostic metric space. A graph neural network is applied to learn an embedding and relation function over these coordinates to process all information contained in the score distribution of the support set. We test our model on both established CD-FSL benchmarks and new domains and show that our method overcomes the limitations of previous meta-learning and transfer-learning methods to deliver substantial improvements in accuracy across both smaller and larger domain shifts.
 
 
 ## Results
