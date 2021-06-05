@@ -46,7 +46,7 @@ class Gconv(nn.Module):
     #if self.J == 1:
     #    x = torch.abs(x)
     x_size = x.size()
-    print(x_size)
+    #print(x_size)
     x = x.contiguous()
     x = x.view(-1, self.num_inputs)
     x = self.fc(x) # has size (bs*N, num_outputs)

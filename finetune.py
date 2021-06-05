@@ -303,10 +303,10 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
         #z = torch.cat([z, z_b], dim = 2) ##concatenate
 
     if not "damsl_v2_ss" in params.method:
-      #z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
-      #score = model.forward_gnn(z_stack)
-      model.start_ss()
-      score = model.forward_gnn_ss(z)
+      z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
+      score = model.forward_gnn(z_stack)
+      #model.start_ss()
+      #score = model.forward_gnn_ss(z)
     else:
       z_stack = [torch.cat([z[:, :model.n_support], z[:, model.n_support + i:model.n_support + i + 1]], dim=1).view(1, -1, z.size(2)) for i in range(n_query)]
       model.original_lab()
@@ -318,9 +318,6 @@ def finetune_classify(liz_x,y, model, state_in, save_it, linear = False, flatten
       new_score = model.forward_gnn_ss(z)
       new_score = torch.nn.functional.softmax(new_score, dim = 1).detach()
       return new_score
-
-    
-
 
     score = torch.nn.functional.softmax(score, dim = 1).detach()
 
@@ -342,7 +339,7 @@ if __name__=='__main__':
 
   ##################################################################
   image_size = 224
-  iter_num = 200
+  iter_num = 600
   n_way  = 5
   pretrained_dataset = "miniImageNet"
   ds = False
@@ -419,7 +416,7 @@ if __name__=='__main__':
           checkpoint_dir += '_aug'
 
       if not params.method in ['baseline'] :
-          if params.optimization != "SGD":
+          if params.optimization != "Adam":
             checkpoint_dir += "_" + params.optimization
           checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
       print(checkpoint_dir)
