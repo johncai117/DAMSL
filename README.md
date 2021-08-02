@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Submission for CVPR 2021 L2ID Workshop.
+Accepted to CVPR 2021 L2ID Workshop.
 
 ### Abstract
 
