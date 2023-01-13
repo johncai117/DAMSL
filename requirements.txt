@@ -80,7 +80,7 @@ sklearn==0.0
 terminado==0.9.3
 testpath==0.4.4
 threadpoolctl==2.1.0
-torch==1.6.0+cu101
+torch==1.13.1
 torchvision==0.7.0+cu101
 tornado==6.1
 tqdm==4.58.0
